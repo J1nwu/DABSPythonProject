@@ -1241,3 +1241,47 @@ def admin_doctors(request):
         "doctors": doctors,
         "section": "doctors",
     })
+# ===========================
+# ADMIN: MANAGE DOCTORS LIST
+# ===========================
+from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render
+from .models import DoctorProfile
+
+@login_required
+def admin_doctors(request):
+    # Only staff/admin users can access this page
+    if not request.user.is_staff:
+        return redirect('home')
+
+    # Read filters from GET
+    q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    # Base queryset
+    doctors = DoctorProfile.objects.select_related('user').all()
+
+    # Text search (name, email, specialization, hospital, city)
+    if q:
+        doctors = doctors.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q) |
+            Q(specialization__icontains=q) |
+            Q(hospital__icontains=q) |
+            Q(city__icontains=q)
+        )
+
+    # Status filter (Pending / Active / Inactive)
+    if status:
+        doctors = doctors.filter(status=status)
+
+    doctors = doctors.order_by('user__first_name', 'user__last_name')
+
+    return render(request, 'booking/admin_doctors.html', {
+        'doctors': doctors,
+        'q': q,
+        'status': status,
+        'section': 'doctors',   # for sidebar highlight
+    })
