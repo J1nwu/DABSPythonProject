@@ -1,13 +1,16 @@
-from typing import Any
+from datetime import datetime
 
-from django.db import models
 from django.contrib.auth.models import User
+from django.db import models
+from django.utils import timezone
 
 class DoctorProfile(models.Model):
     STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('Active', 'Active'),
-        ('Inactive', 'Inactive'),
+        ("Pending", "Pending"),
+        ("Approved", "Approved"),
+        ("Rejected", "Rejected"),
+        ("Active", "Active"),
+        ("Inactive", "Inactive"),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -57,13 +60,24 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(args, kwargs)
-        self.datetime = None
-        self.id = None
-
     def __str__(self):
         return f"{self.patient.username} → Dr. {self.doctor.user.last_name} ({self.status})"
+
+    @property
+    def datetime(self):
+        """Return the appointment's timezone-aware datetime when possible."""
+        if not self.date or not self.time:
+            return None
+
+        combined = datetime.combine(self.date, self.time)
+        if timezone.is_naive(combined):
+            try:
+                return timezone.make_aware(combined)
+            except Exception:
+                # If the project is configured for naive datetimes just return the
+                # combined value so the caller can still perform comparisons.
+                return combined
+        return combined
 
 
 class Notification(models.Model):
