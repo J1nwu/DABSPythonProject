@@ -1359,3 +1359,210 @@ def admin_doctors(request):
         'status': status,
         'section': 'doctors',   # sidebar highlight
     })
+# ===========================
+# ADMIN: MANAGE PATIENTS
+# ===========================
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+@login_required
+def admin_patients(request):
+    # Only staff/admin users can access
+    if not request.user.is_staff:
+        return redirect('home')
+
+    User = get_user_model()
+
+    # Base queryset: non-staff normal users
+    patients = User.objects.filter(is_staff=False)
+
+    # Exclude doctor accounts (users having a DoctorProfile)
+    doctor_user_ids = DoctorProfile.objects.values_list('user_id', flat=True).distinct()
+    patients = patients.exclude(id__in=doctor_user_ids)
+
+    # ---------- POST: actions (activate / deactivate / delete) ----------
+    if request.method == "POST":
+        patient_id = request.POST.get("patient_id")
+        action = request.POST.get("action")
+
+        if patient_id and action:
+            try:
+                p = patients.get(id=patient_id)
+            except User.DoesNotExist:
+                messages.error(request, "Patient not found.")
+                return redirect("admin_patients")
+
+            full_name = p.get_full_name() or p.username
+
+            if action == "activate":
+                p.is_active = True
+                p.save(update_fields=["is_active"])
+                messages.success(request, f"Patient {full_name} set to Active.")
+
+            elif action == "deactivate":
+                p.is_active = False
+                p.save(update_fields=["is_active"])
+                messages.success(request, f"Patient {full_name} set to Inactive.")
+
+            elif action == "delete":
+                p.delete()
+                messages.success(request, f"Patient {full_name} deleted.")
+
+        return redirect("admin_patients")
+
+    # ---------- GET: filters ----------
+    q = request.GET.get("q", "").strip()
+
+    if q:
+        patients = patients.filter(
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(username__icontains=q)
+            | Q(email__icontains=q)
+        )
+
+    patients = patients.order_by("first_name", "last_name", "username")
+
+    return render(request, "booking/admin_patients.html", {
+        "patients": patients,
+        "q": q,
+        "section": "patients",   # to highlight sidebar
+    })
+# ===========================
+# ADMIN: ALL APPOINTMENTS + CSV EXPORT
+# ===========================
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect
+from django.utils.dateparse import parse_date
+from django.db.models import Q
+from django.http import HttpResponse
+import csv
+
+@login_required
+def admin_appointments(request):
+    # Only staff/admin users can access
+    if not request.user.is_staff:
+        return redirect('home')
+
+    # Base queryset
+    appts = Appointment.objects.select_related('patient', 'doctor__user').all()
+
+    # ---- Filters from query string ----
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    date_from = request.GET.get("from", "").strip()
+    date_to = request.GET.get("to", "").strip()
+
+    if q:
+        appts = appts.filter(
+            Q(patient__first_name__icontains=q)
+            | Q(patient__last_name__icontains=q)
+            | Q(patient__username__icontains=q)
+            | Q(patient__email__icontains=q)
+            | Q(doctor__user__first_name__icontains=q)
+            | Q(doctor__user__last_name__icontains=q)
+            | Q(doctor__specialization__icontains=q)
+            | Q(hospital__icontains=q)
+            | Q(department__icontains=q)
+        )
+
+    if status:
+        appts = appts.filter(status=status)
+
+    if date_from:
+        df = parse_date(date_from)
+        if df:
+            appts = appts.filter(date__gte=df)
+
+    if date_to:
+        dt = parse_date(date_to)
+        if dt:
+            appts = appts.filter(date__lte=dt)
+
+    appts = appts.order_by('-date', '-time')
+
+    return render(request, "booking/admin_appointments.html", {
+        "appts": appts,
+        "q": q,
+        "status": status,
+        "date_from": date_from,
+        "date_to": date_to,
+        "section": "appointments",
+    })
+
+
+@login_required
+def admin_export_appointments_csv(request):
+    # Only staff/admin users can access
+    if not request.user.is_staff:
+        return redirect('home')
+
+    appts = Appointment.objects.select_related('patient', 'doctor__user').all()
+
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+    date_from = request.GET.get("from", "").strip()
+    date_to = request.GET.get("to", "").strip()
+
+    if q:
+        appts = appts.filter(
+            Q(patient__first_name__icontains=q)
+            | Q(patient__last_name__icontains=q)
+            | Q(patient__username__icontains=q)
+            | Q(patient__email__icontains=q)
+            | Q(doctor__user__first_name__icontains=q)
+            | Q(doctor__user__last_name__icontains=q)
+            | Q(doctor__specialization__icontains=q)
+            | Q(hospital__icontains=q)
+            | Q(department__icontains=q)
+        )
+
+    if status:
+        appts = appts.filter(status=status)
+
+    if date_from:
+        df = parse_date(date_from)
+        if df:
+            appts = appts.filter(date__gte=df)
+
+    if date_to:
+        dt = parse_date(date_to)
+        if dt:
+            appts = appts.filter(date__lte=dt)
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="dabs_appointments.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "ID",
+        "Appt Code",
+        "Patient",
+        "Patient Email",
+        "Doctor",
+        "Specialization",
+        "Department",
+        "Hospital",
+        "Date",
+        "Time",
+        "Status",
+    ])
+
+    for a in appts.order_by('-date', '-time'):
+        patient_name = a.patient.get_full_name() or a.patient.username
+        doctor_name = f"Dr. {a.doctor.user.get_full_name()}" if a.doctor and a.doctor.user else ""
+        writer.writerow([
+            a.id,
+            f"A-10{a.id}",
+            patient_name,
+            a.patient.email,
+            doctor_name,
+            a.doctor.specialization if a.doctor else "",
+            a.department,
+            a.hospital,
+            a.date.isoformat() if a.date else "",
+            a.time.strftime("%H:%M") if a.time else "",
+            a.status,
+        ])
+
+    return response
