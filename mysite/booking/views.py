@@ -1234,12 +1234,30 @@ def admin_doctors(request):
 
         return redirect("admin_doctors")
 
-    # GET = show all doctors
-    doctors = DoctorProfile.objects.select_related("user").order_by("user__first_name")
+    q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    doctors = DoctorProfile.objects.select_related("user")
+
+    if status:
+        doctors = doctors.filter(status=status)
+
+    if q:
+        doctors = doctors.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q) |
+            Q(specialization__icontains=q) |
+            Q(hospital__icontains=q)
+        )
+
+    doctors = doctors.order_by('user__first_name', 'user__last_name')
 
     return render(request, "booking/admin_doctors.html", {
         "doctors": doctors,
         "section": "doctors",
+        "q": q,
+        "status": status,
     })
 # ===========================
 # ADMIN: MANAGE DOCTORS LIST
