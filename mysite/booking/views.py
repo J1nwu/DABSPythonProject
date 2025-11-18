@@ -1566,3 +1566,109 @@ def admin_export_appointments_csv(request):
         ])
 
     return response
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, redirect
+
+
+@login_required
+def admin_reports(request):
+    """
+    Admin Reports:
+      - Filters: doctor, status, date_from, date_to
+      - Summary cards (total / pending / approved / cancelled)
+      - Status breakdown table
+      - Daily breakdown table (last 30 days)
+      - Sample appointments table (first 100 rows after filters)
+    """
+    if not request.user.is_staff:
+        return redirect("home")
+
+    from django.db.models import Q, Count
+    from django.db.models.functions import TruncDate
+    from django.utils.dateparse import parse_date
+    from .models import Appointment, DoctorProfile
+
+    # ----- base queryset -----
+    qs = (
+        Appointment.objects
+        .select_related("patient", "doctor", "doctor__user")
+        .order_by("-date", "-time")
+    )
+
+    # ----- filters from GET -----
+    doctor_id = request.GET.get("doctor", "").strip()
+    status = request.GET.get("status", "").strip()
+    start = request.GET.get("start", "").strip()
+    end = request.GET.get("end", "").strip()
+
+    # filter by doctor
+    if doctor_id:
+        qs = qs.filter(doctor_id=doctor_id)
+
+    # filter by status
+    if status:
+        qs = qs.filter(status=status)
+
+    # date range: start / end (inclusive)
+    start_date = parse_date(start) if start else None
+    end_date = parse_date(end) if end else None
+
+    if start_date:
+        qs = qs.filter(date__gte=start_date)
+    if end_date:
+        qs = qs.filter(date__lte=end_date)
+
+    # ----- summary counts -----
+    total_appointments = qs.count()
+    pending_count = qs.filter(status="Pending").count()
+    approved_count = qs.filter(status="Approved").count()
+    cancelled_count = qs.filter(status="Cancelled").count()
+
+    # status breakdown
+    status_counts = (
+        qs.values("status")
+        .annotate(total=Count("id"))
+        .order_by()
+    )
+
+    # daily breakdown (last 30 days in this filtered set)
+    daily_counts = (
+        qs.annotate(day=TruncDate("date"))
+          .values("day")
+          .annotate(
+              total=Count("id"),
+              pending=Count("id", filter=Q(status="Pending")),
+              approved=Count("id", filter=Q(status="Approved")),
+              cancelled=Count("id", filter=Q(status="Cancelled")),
+          )
+          .order_by("-day")[:30]
+    )
+
+    # doctor list for dropdown
+    doctors = (
+        DoctorProfile.objects
+        .select_related("user")
+        .order_by("user__first_name", "user__last_name")
+    )
+
+    # limit sample table to avoid huge page
+    sample_appointments = qs[:100]
+
+    context = {
+        "section": "reports",
+        "doctors": doctors,
+        "filter_doctor": doctor_id,
+        "filter_status": status,
+        "start": start,
+        "end": end,
+
+        "total_appointments": total_appointments,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "cancelled_count": cancelled_count,
+
+        "status_counts": status_counts,
+        "daily_counts": daily_counts,
+        "appointments": sample_appointments,
+    }
+    return render(request, "booking/admin_reports.html", context)
