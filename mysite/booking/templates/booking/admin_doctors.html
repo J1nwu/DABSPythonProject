@@ -16,26 +16,26 @@
   <!-- Filters -->
   <form class="row g-2 mb-3" method="get">
     <div class="col-md-4">
-      <input class="form-control"
-             name="q"
-             placeholder="Search doctor, email, hospital, city"
-             value="{{ q }}">
+        <label>
+            <input class="form-control"
+                   name="q"
+                   placeholder="Search doctor, email, hospital, city"
+                   value="{{ q }}">
+        </label>
     </div>
     <div class="col-md-3">
-      <select class="form-select" name="status">
-        <option value="">All Status</option>
+        <label>
+            <select class="form-select" name="status">
+              <option value="">All Status</option>
 
-        <option value="Pending" {% if status == "Pending" %}selected{% endif %}>
-          Pending
-        </option>
-        <option value="Active" {% if status == "Active" %}selected{% endif %}>
-          Active
-        </option>
-        <option value="Inactive" {% if status == "Inactive" %}selected{% endif %}>
-          Inactive
-        </option>
+              <option value="Pending" {% if status == "Pending" %}selected{% endif %}>Pending</option>
+              <option value="Approved" {% if status == "Approved" %}selected{% endif %}>Approved</option>
+              <option value="Active" {% if status == "Active" %}selected{% endif %}>Active</option>
+              <option value="Inactive" {% if status == "Inactive" %}selected{% endif %}>Inactive</option>
+              <option value="Rejected" {% if status == "Rejected" %}selected{% endif %}>Rejected</option>
 
-      </select>
+            </select>
+        </label>
     </div>
     <div class="col-md-3">
       <button class="btn btn-primary">Filter</button>
@@ -62,6 +62,7 @@
           <th>Hospital</th>
           <th>City</th>
           <th>Status</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -76,15 +77,57 @@
           <td>
             <span class="badge
               {% if d.status == 'Active' %}text-bg-success
-              {% elif d.status == 'Pending' %}text-bg-warning
+              {% elif d.status == 'Pending' or d.status == 'Approved' %}text-bg-warning
+              {% elif d.status == 'Rejected' %}text-bg-danger
               {% else %}text-bg-secondary{% endif %}">
               {{ d.status }}
             </span>
           </td>
+          <td>
+            <!-- Activate -->
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="doctor_id" value="{{ d.id }}">
+              <button type="submit"
+                      name="action"
+                      value="activate"
+                      class="btn btn-sm btn-outline-success"
+                      {% if d.status == 'Active' %}disabled{% endif %}>
+                Activate
+              </button>
+            </form>
+
+            <!-- Deactivate -->
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="doctor_id" value="{{ d.id }}">
+              <button type="submit"
+                      name="action"
+                      value="deactivate"
+                      class="btn btn-sm btn-outline-secondary"
+                      {% if d.status == 'Inactive' %}disabled{% endif %}>
+                Deactivate
+              </button>
+            </form>
+
+            <!-- Delete -->
+            <form method="post"
+                  class="d-inline"
+                  onsubmit="return confirm('Delete this doctor profile?');">
+              {% csrf_token %}
+              <input type="hidden" name="doctor_id" value="{{ d.id }}">
+              <button type="submit"
+                      name="action"
+                      value="delete"
+                      class="btn btn-sm btn-outline-danger">
+                Delete
+              </button>
+            </form>
+          </td>
         </tr>
       {% empty %}
         <tr>
-          <td colspan="7" class="text-muted text-center">No doctors found.</td>
+          <td colspan="8" class="text-muted text-center">No doctors found.</td>
         </tr>
       {% endfor %}
       </tbody>

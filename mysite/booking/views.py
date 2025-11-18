@@ -1285,3 +1285,77 @@ def admin_doctors(request):
         'status': status,
         'section': 'doctors',   # for sidebar highlight
     })
+# ===========================
+# ADMIN: MANAGE DOCTORS (LIST + ACTIONS)
+# ===========================
+from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render, get_object_or_404
+from django.contrib import messages
+from .models import DoctorProfile
+
+@login_required
+def admin_doctors(request):
+    # Only staff/admin users can access this page
+    if not request.user.is_staff:
+        return redirect('home')
+
+    # --------- POST: actions (Activate / Deactivate / Delete) ----------
+    if request.method == 'POST':
+        doc_id = request.POST.get('doctor_id')
+        action = request.POST.get('action')
+
+        if doc_id and action:
+            try:
+                doc = DoctorProfile.objects.select_related('user').get(id=doc_id)
+            except DoctorProfile.DoesNotExist:
+                messages.error(request, "Doctor not found.")
+                return redirect('admin_doctors')
+
+            full_name = doc.user.get_full_name() or doc.user.username
+
+            if action == 'activate':
+                doc.status = 'Active'
+                doc.save(update_fields=['status'])
+                messages.success(request, f"Doctor {full_name} set to Active.")
+
+            elif action == 'deactivate':
+                doc.status = 'Inactive'
+                doc.save(update_fields=['status'])
+                messages.success(request, f"Doctor {full_name} set to Inactive.")
+
+            elif action == 'delete':
+                doc.delete()
+                messages.success(request, f"Doctor {full_name} deleted.")
+
+        return redirect('admin_doctors')
+
+    # --------- GET: list + filters ----------
+    q = request.GET.get('q', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    doctors = DoctorProfile.objects.select_related('user').all()
+
+    # Text search
+    if q:
+        doctors = doctors.filter(
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q) |
+            Q(specialization__icontains=q) |
+            Q(hospital__icontains=q) |
+            Q(city__icontains=q)
+        )
+
+    # Status filter (handles Pending / Active / Inactive / Approved / Rejected)
+    if status:
+        doctors = doctors.filter(status=status)
+
+    doctors = doctors.order_by('user__first_name', 'user__last_name')
+
+    return render(request, 'booking/admin_doctors.html', {
+        'doctors': doctors,
+        'q': q,
+        'status': status,
+        'section': 'doctors',   # sidebar highlight
+    })
