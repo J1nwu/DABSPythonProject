@@ -1,0 +1,9 @@
+<nav class="navbar navbar-dark" style="background:linear-gradient(90deg,#0a3a67,#0d5ea6);">
+  <div class="container d-flex justify-content-between">
+    <span class="navbar-brand fw-bold">DABS <small class="fw-normal">Admin Panel</small></span>
+    <div class="text-light small">
+      Admin: {{ request.user.first_name|default:request.user.username }}
+      <a class="btn btn-outline-light btn-sm ms-3" href="/logout/">Logout</a>
+    </div>
+  </div>
+</nav>
