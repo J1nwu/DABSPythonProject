@@ -41,6 +41,7 @@ urlpatterns = [
     path('dabs-admin/appointments/export/csv/', views.admin_export_appointments_csv, name='admin_export_appointments_csv'),
     path('dabs-admin/reports/', views.admin_reports, name='admin_reports'),
     path('dabs-admin/settings/', views.admin_settings, name='admin_settings'),
+path('dabs-admin/logs/', views.admin_logs, name='admin_logs'),
 
 
 ]

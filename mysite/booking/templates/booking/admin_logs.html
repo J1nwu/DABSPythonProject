@@ -1,0 +1,43 @@
+{% extends "booking/admin_base.html" %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">System Logs</h3>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4">
+    <input class="form-control"
+           name="q"
+           placeholder="Filter by user name"
+           value="{{ q }}">
+  </div>
+  <div class="col-md-3">
+    <button class="btn btn-primary">Apply Filter</button>
+    <a class="btn btn-outline-secondary ms-1" href=".">Reset</a>
+  </div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Timestamp</th>
+        <th>User</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at|date:"M j, Y g:i a" }}</td>
+        <td>{{ log.user.username }}</td>
+        <td>{{ log.action }}</td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="3" class="text-muted">No log entries recorded yet.</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

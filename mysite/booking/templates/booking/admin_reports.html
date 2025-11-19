@@ -1,220 +1,185 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DABS — Reports</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background:#f5f7fb; }
-    .stat-card {
-      border-radius:14px;
-      box-shadow:0 4px 14px rgba(0,0,0,0.06);
-      height:120px;
-    }
-    .stat-title {
-      font-size:0.8rem;
-      text-transform:uppercase;
-      letter-spacing:0.08em;
-      color:#7b8190;
-    }
-    .stat-value {
-      font-size:1.8rem;
-      font-weight:700;
-    }
-  </style>
-</head>
-<body>
+{% extends "booking/admin_base.html" %}
 
-{% include "booking/admin_navbar.html" %}
+{% block content %}
+<h3 class="fw-bold mb-3">Reports</h3>
 
-<div class="container py-4">
-  <h3 class="fw-bold mb-3">Reports</h3>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-3">
+    <select class="form-select" name="doctor">
+      <option value="">All Doctors</option>
+      {% for d in doctors %}
+        <option value="{{ d.id }}" {% if doctor_filter == d.id|stringformat:"s" %}selected{% endif %}>
+          Dr. {{ d.user.get_full_name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
 
-  <!-- Filters -->
-  <form class="row g-2 mb-4" method="get">
-    <!-- Doctor -->
-    <div class="col-md-4">
-      <select class="form-select" name="doctor">
-        <option value="">All Doctors</option>
-        {% for d in doctors %}
-          <option value="{{ d.id }}"
-                  {% if filter_doctor|default:'' == d.id|stringformat:"s" %}selected{% endif %}>
-            Dr. {{ d.user.get_full_name }} ({{ d.hospital }})
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+  <div class="col-md-2">
+    <select class="form-select" name="status">
+      <option value="">All Status</option>
+      <option value="Pending"   {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
+      <option value="Approved"  {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
+      <option value="Cancelled" {% if status_filter == "Cancelled" %}selected{% endif %}>Cancelled</option>
+    </select>
+  </div>
 
-    <!-- Status -->
-    <div class="col-md-2">
-      <select class="form-select" name="status">
-        <option value="">All Status</option>
-        <option value="Pending"   {% if filter_status == "Pending" %}selected{% endif %}>Pending</option>
-        <option value="Approved"  {% if filter_status == "Approved" %}selected{% endif %}>Approved</option>
-        <option value="Rescheduled" {% if filter_status == "Rescheduled" %}selected{% endif %}>Rescheduled</option>
-        <option value="Cancelled" {% if filter_status == "Cancelled" %}selected{% endif %}>Cancelled</option>
-        <option value="Completed" {% if filter_status == "Completed" %}selected{% endif %}>Completed</option>
-        <option value="Rejected"  {% if filter_status == "Rejected" %}selected{% endif %}>Rejected</option>
-      </select>
-    </div>
+  <div class="col-md-2">
+    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+  </div>
+  <div class="col-md-2">
+    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+  </div>
 
-    <!-- Date range -->
-    <div class="col-md-2">
-      <input type="date" class="form-control" name="start" value="{{ start }}">
-    </div>
-    <div class="col-md-2">
-      <input type="date" class="form-control" name="end" value="{{ end }}">
-    </div>
+  <div class="col-md-3 d-flex gap-2">
+    <button class="btn btn-primary flex-grow-1">Filter</button>
+    <a class="btn btn-outline-secondary" href=".">Reset</a>
+  </div>
+</form>
 
-    <!-- Buttons -->
-    <div class="col-md-2 d-flex gap-2">
-      <button class="btn btn-primary w-100" type="submit">Filter</button>
-      <a class="btn btn-outline-secondary w-100" href=".">Reset</a>
-    </div>
-  </form>
-
-  <!-- Top summary cards -->
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card stat-card">
-        <div class="card-body">
-          <div class="stat-title">Total Appointments</div>
-          <div class="stat-value">{{ total_appointments }}</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card">
-        <div class="card-body">
-          <div class="stat-title">Pending</div>
-          <div class="stat-value">{{ pending_count }}</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card">
-        <div class="card-body">
-          <div class="stat-title">Approved</div>
-          <div class="stat-value">{{ approved_count }}</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card stat-card">
-        <div class="card-body">
-          <div class="stat-title">Cancelled</div>
-          <div class="stat-value">{{ cancelled_count }}</div>
-        </div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-uppercase text-muted small">Total Appointments</div>
+        <div class="fs-3 fw-bold">{{ total_appointments }}</div>
       </div>
     </div>
   </div>
-
-  <!-- Status breakdown table -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="fw-bold mb-3">Status Breakdown</h5>
-      <div class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Status</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for row in status_counts %}
-            <tr>
-              <td>{{ row.status }}</td>
-              <td>{{ row.total }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="2" class="text-muted">No data for selected filters.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-uppercase text-muted small">Pending</div>
+        <div class="fs-3 fw-bold">{{ pending_count }}</div>
       </div>
     </div>
   </div>
-
-  <!-- Daily breakdown table -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="fw-bold mb-3">Daily Overview (last 30 days in result)</h5>
-      <div class="table-responsive">
-        <table class="table table-sm align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>Date</th>
-              <th>Total</th>
-              <th>Pending</th>
-              <th>Approved</th>
-              <th>Cancelled</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for d in daily_counts %}
-            <tr>
-              <td>{{ d.date }}</td>
-              <td>{{ d.total }}</td>
-              <td>{{ d.pending }}</td>
-              <td>{{ d.approved }}</td>
-              <td>{{ d.cancelled }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="5" class="text-muted">No daily data.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-uppercase text-muted small">Approved</div>
+        <div class="fs-3 fw-bold">{{ approved_count }}</div>
       </div>
     </div>
   </div>
-
-    <!-- Appointments table (filtered) -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="fw-bold mb-1">Appointment History</h5>
-      <p class="text-muted small mb-3">
-        List of appointments matching the selected filters, ordered by latest date and time.
-      </p>
-      <div class="table-responsive">
-        <table class="table table-striped align-middle">
-          <thead class="table-light">
-            <tr>
-              <th>ID</th>
-              <th>Appt Code</th>
-              <th>Patient</th>
-              <th>Doctor</th>
-              <th>Department</th>
-              <th>Hospital</th>
-              <th>Date</th>
-              <th>Time</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for a in appointments %}
-            <tr>
-              <td>{{ a.id }}</td>
-              <td>A-10{{ a.id }}</td>
-              <td>{{ a.patient.get_full_name|default:a.patient.username }}</td>
-              <td>Dr. {{ a.doctor.user.get_full_name }}</td>
-              <td>{{ a.department }}</td>
-              <td>{{ a.hospital }}</td>
-              <td>{{ a.date }}</td>
-              <td>{{ a.time }}</td>
-              <td>{{ a.status }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="9" class="text-muted">No appointments found for the selected criteria.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="text-uppercase text-muted small">Cancelled</div>
+        <div class="fs-3 fw-bold">{{ cancelled_count }}</div>
       </div>
     </div>
   </div>
-
 </div>
 
-</body>
-</html>
+<!-- Status breakdown -->
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <h5 class="fw-bold mb-3">Status Breakdown</h5>
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Status</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in status_counts %}
+          <tr>
+            <td>{{ row.status }}</td>
+            <td>{{ row.total }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" class="text-muted">No data.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Daily overview -->
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <h5 class="fw-bold mb-3">Daily Overview (last 30 days in result)</h5>
+    <div class="table-responsive">
+      <table class="table mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th>
+            <th>Total</th>
+            <th>Pending</th>
+            <th>Approved</th>
+            <th>Cancelled</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for d in daily_counts %}
+          <tr>
+            <td>{{ d.day }}</td>
+            <td>{{ d.total }}</td>
+            <td>{{ d.pending }}</td>
+            <td>{{ d.approved }}</td>
+            <td>{{ d.cancelled }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted">No daily data.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Appointment history table -->
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    <h5 class="fw-bold mb-3">Appointment History</h5>
+    <p class="text-muted small">
+      List of appointments matching the selected filters.
+    </p>
+    <div class="table-responsive">
+      <table class="table table-striped align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Appt Code</th>
+            <th>Patient</th>
+            <th>Doctor</th>
+            <th>Department</th>
+            <th>Hospital</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for a in appointments_sample %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>{{ a.code }}</td>
+            <td>{{ a.patient.user.get_full_name }}</td>
+            <td>Dr. {{ a.doctor.user.get_full_name }}</td>
+            <td>{{ a.doctor.specialization }}</td>
+            <td>{{ a.doctor.hospital }}</td>
+            <td>{{ a.date|date:"M j, Y" }}</td>
+            <td>{{ a.time|time:"g:i a" }}</td>
+            <td>
+              <span class="badge
+                {% if a.status == 'Approved' %}bg-success
+                {% elif a.status == 'Cancelled' %}bg-danger
+                {% else %}bg-warning text-dark{% endif %}">
+                {{ a.status }}
+              </span>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="text-muted">No appointments in this period.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

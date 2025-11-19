@@ -1,133 +1,88 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DABS — All Appointments</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "booking/admin_base.html" %}
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+{% block content %}
+<h3 class="fw-bold mb-3">All Appointments</h3>
 
-{% include "booking/admin_navbar.html" %}
-
-<div class="container py-4">
-  <h3 class="fw-bold mb-3">All Appointments</h3>
-
-  <!-- Filters -->
-  <form class="row g-2 mb-3" method="get">
-    <div class="col-md-3">
-      <input class="form-control"
-             name="q"
-             placeholder="Search patient, doctor, hospital"
-             value="{{ q }}">
-    </div>
-
-    <div class="col-md-2">
-      <select class="form-select" name="status">
-        <option value="">All Status</option>
-        <option value="Pending" {% if status == "Pending" %}selected{% endif %}>Pending</option>
-        <option value="Approved" {% if status == "Approved" %}selected{% endif %}>Approved</option>
-        <option value="Rescheduled" {% if status == "Rescheduled" %}selected{% endif %}>Rescheduled</option>
-        <option value="Cancelled" {% if status == "Cancelled" %}selected{% endif %}>Cancelled</option>
-        <option value="Completed" {% if status == "Completed" %}selected{% endif %}>Completed</option>
-        <option value="Rejected" {% if status == "Rejected" %}selected{% endif %}>Rejected</option>
-      </select>
-    </div>
-
-    <div class="col-md-2">
-      <input type="date"
-             class="form-control"
-             name="from"
-             placeholder="From"
-             value="{{ date_from }}">
-    </div>
-    <div class="col-md-2">
-      <input type="date"
-             class="form-control"
-             name="to"
-             placeholder="To"
-             value="{{ date_to }}">
-    </div>
-
-    <div class="col-md-3 d-flex gap-2">
-      <button class="btn btn-primary flex-grow-1">Filter</button>
-      <a class="btn btn-outline-secondary" href=".">Reset</a>
-    </div>
-  </form>
-
-  <!-- Export -->
-  <div class="mb-3">
-    <a class="btn btn-sm btn-outline-secondary"
-       href="{% url 'admin_export_appointments_csv' %}?q={{ q }}&status={{ status }}&from={{ date_from }}&to={{ date_to }}">
-      Export CSV
-    </a>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-3">
+    <input class="form-control"
+           name="q"
+           placeholder="Search patient, doctor, hospital"
+           value="{{ q }}">
   </div>
 
-  <!-- Messages -->
-  {% if messages %}
-    {% for m in messages %}
-      <div class="alert alert-{{ m.tags|default:'info' }} mb-2">{{ m }}</div>
+  <div class="col-md-2">
+    <select class="form-select" name="status">
+      <option value="">All Status</option>
+      <option value="Pending"  {% if status == "Pending" %}selected{% endif %}>Pending</option>
+      <option value="Approved" {% if status == "Approved" %}selected{% endif %}>Approved</option>
+      <option value="Cancelled" {% if status == "Cancelled" %}selected{% endif %}>Cancelled</option>
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+  </div>
+  <div class="col-md-2">
+    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+  </div>
+
+  <div class="col-md-3 d-flex gap-2">
+    <button class="btn btn-primary flex-grow-1">Filter</button>
+    <a class="btn btn-outline-secondary" href=".">Reset</a>
+  </div>
+</form>
+
+<form method="get" action="{% url 'admin_export_appointments_csv' %}" class="mb-3">
+  <!-- Preserve current filters when exporting -->
+  <input type="hidden" name="q" value="{{ q }}">
+  <input type="hidden" name="status" value="{{ status }}">
+  <input type="hidden" name="start_date" value="{{ start_date }}">
+  <input type="hidden" name="end_date" value="{{ end_date }}">
+  <button class="btn btn-outline-secondary btn-sm">Export CSV</button>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Appt Code</th>
+        <th>Patient</th>
+        <th>Doctor</th>
+        <th>Department</th>
+        <th>Hospital</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for a in appointments %}
+      <tr>
+        <td>{{ a.id }}</td>
+        <td>{{ a.code }}</td>
+        <td>{{ a.patient.user.get_full_name }}</td>
+        <td>Dr. {{ a.doctor.user.get_full_name }}</td>
+        <td>{{ a.doctor.specialization }}</td>
+        <td>{{ a.doctor.hospital }}</td>
+        <td>{{ a.date|date:"M j, Y" }}</td>
+        <td>{{ a.time|time:"g:i a" }}</td>
+        <td>
+          <span class="badge
+            {% if a.status == 'Approved' %}bg-success
+            {% elif a.status == 'Cancelled' %}bg-danger
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ a.status }}
+          </span>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="9" class="text-muted">No appointments found.</td>
+      </tr>
     {% endfor %}
-  {% endif %}
-
-  <!-- Table -->
-  <div class="table-responsive">
-    <table class="table table-striped align-middle">
-      <thead class="table-light">
-        <tr>
-          <th>ID</th>
-          <th>Appt Code</th>
-          <th>Patient</th>
-          <th>Doctor</th>
-          <th>Department</th>
-          <th>Hospital</th>
-          <th>Date</th>
-          <th>Time</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for a in appts %}
-        <tr>
-          <td>{{ a.id }}</td>
-          <td>A-10{{ a.id }}</td>
-          <td>{{ a.patient.get_full_name|default:a.patient.username }}</td>
-          <td>
-            {% if a.doctor and a.doctor.user %}
-              Dr. {{ a.doctor.user.get_full_name }}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td>{{ a.department }}</td>
-          <td>{{ a.hospital }}</td>
-          <td>{{ a.date }}</td>
-          <td>{{ a.time }}</td>
-          <td>
-            <span class="badge
-              {% if a.status == "Pending" %}text-bg-secondary
-              {% elif a.status == "Approved" %}text-bg-success
-              {% elif a.status == "Rescheduled" %}text-bg-info
-              {% elif a.status == "Cancelled" %}text-bg-danger
-              {% elif a.status == "Completed" %}text-bg-primary
-              {% elif a.status == "Rejected" %}text-bg-warning
-              {% else %}text-bg-light{% endif %}">
-              {{ a.status }}
-            </span>
-          </td>
-        </tr>
-      {% empty %}
-        <tr>
-          <td colspan="9" class="text-muted text-center">
-            No appointments found for selected filters.
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    </tbody>
+  </table>
 </div>
-
-</body>
-</html>
+{% endblock %}

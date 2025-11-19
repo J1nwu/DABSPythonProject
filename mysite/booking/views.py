@@ -86,6 +86,30 @@ def post_login_redirect(request):
     """
     return route_after_login(request)
 
+@login_required
+def doctor_dashboard(request):
+    from django.shortcuts import get_object_or_404
+    profile = get_object_or_404(DoctorProfile, user=request.user)
+
+    # simple stats
+    today = timezone.localdate()
+    today_count = Appointment.objects.filter(doctor=profile, date=today).count()
+    pending_count = Appointment.objects.filter(doctor=profile, status="Pending").count()
+
+    stats = {
+        "today_count": today_count,
+        "pending_count": pending_count,
+    }
+
+    return render(
+        request,
+        "booking/doctor_dashboard.html",
+        {
+            "profile": profile,
+            "stats": stats,
+            "section": "dashboard",
+        },
+    )
 
 # ============================
 # PATIENT REGISTRATION / DASHBOARD
@@ -229,27 +253,6 @@ def doctor_register(request):
         return redirect("login")
 
     return render(request, "booking/doctor_register.html")
-
-
-@login_required
-def doctor_dashboard(request):
-    """
-    Simple doctor dashboard with basic stats.
-    """
-    doctor = get_object_or_404(DoctorProfile, user=request.user)
-
-    total_appts = Appointment.objects.filter(doctor=doctor).count()
-    pending_appts = Appointment.objects.filter(
-        doctor=doctor, status="Pending"
-    ).count()
-
-    context = {
-        "doc": doctor,
-        "total_appointments": total_appts,
-        "pending_appointments": pending_appts,
-    }
-    return render(request, "booking/doctor_dashboard.html", context)
-
 
 # ============================
 # PATIENT: FIND / BOOK / MANAGE APPOINTMENTS
@@ -1125,3 +1128,34 @@ def admin_settings(request):
         "settings_obj": settings_obj,
     }
     return render(request, "booking/admin_settings.html", context)
+
+# ---------------------------
+# Admin – System Logs
+# ---------------------------
+from django.core.paginator import Paginator
+
+@login_required
+def admin_logs(request):
+    """
+    Show SecurityLog entries (system activity log) to staff/admin users.
+    """
+    if not request.user.is_staff:
+        return redirect("home")
+
+    from .models import SecurityLog
+
+    # Optional basic filter by user substring
+    q = request.GET.get("q", "").strip()
+    logs = SecurityLog.objects.all().order_by("-timestamp")
+    if q:
+        logs = logs.filter(user__icontains=q)
+
+    paginator = Paginator(logs, 50)  # 50 entries per page
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        "section": "logs",
+        "page_obj": page_obj,
+        "q": q,
+    }
+    return render(request, "booking/admin_logs.html", context)

@@ -1,144 +1,104 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DABS — Admin Settings</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+{% extends "booking/admin_base.html" %}
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    body { background:#f5f7fb; }
-    .card-shadow { box-shadow:0 4px 14px rgba(0,0,0,0.06); border-radius:14px; }
-    .form-section-title { font-weight:600; font-size:1rem; margin-bottom:0.4rem; }
-    .help-text { font-size:0.85rem; color:#6c757d; }
-  </style>
-</head>
-<body>
+{% block content %}
+<h3 class="fw-bold mb-3">System Settings</h3>
 
-{% include "booking/admin_navbar.html" %}
+<div class="row">
+  <div class="col-lg-8">
+    <form method="post" class="card shadow-sm border-0">
+      {% csrf_token %}
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label">Site / System Name</label>
+            <label>
+                <input type="text" class="form-control" name="site_name"
+                       value="{{ settings_obj.site_name }}">
+            </label>
+            <div class="form-text">Shown in the header (e.g., DABS).</div>
+        </div>
 
-<div class="container py-4">
+        <div class="mb-3">
+          <label class="form-label">Hospital / Organisation Name</label>
+            <label>
+                <input type="text" class="form-control" name="hospital_name"
+                       value="{{ settings_obj.hospital_name }}">
+            </label>
+        </div>
 
-  {% if messages %}
-    {% for m in messages %}
-      <div class="alert alert-{{ m.tags }} mb-3">{{ m }}</div>
-    {% endfor %}
-  {% endif %}
-
-  <h3 class="fw-bold mb-3">System Settings</h3>
-
-  <div class="row g-4">
-    <div class="col-lg-8">
-      <div class="card card-shadow border-0">
-        <div class="card-body">
-          <form method="post">
-            {% csrf_token %}
-
-            <div class="mb-3">
-              <label class="form-label form-section-title">Site / System Name</label>
-              <input type="text" name="site_name" class="form-control"
-                     value="{{ settings_obj.site_name }}">
-              <div class="help-text">Shown in the navbar (e.g., DABS).</div>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label form-section-title">Hospital / Organisation Name</label>
-              <input type="text" name="hospital_name" class="form-control"
-                     value="{{ settings_obj.hospital_name }}">
-            </div>
-
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label class="form-label form-section-title">Support Email</label>
-                <input type="email" name="support_email" class="form-control"
+        <div class="mb-3">
+          <label class="form-label">Support Email</label>
+            <label>
+                <input type="email" class="form-control" name="support_email"
                        value="{{ settings_obj.support_email }}">
-              </div>
-              <div class="col-md-6 mb-3">
-                <label class="form-label form-section-title">Support Phone</label>
-                <input type="text" name="support_phone" class="form-control"
-                       value="{{ settings_obj.support_phone }}">
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <label class="form-label form-section-title">Default Slot (minutes)</label>
-                <input type="number" min="5" step="5"
-                       name="default_slot_minutes"
-                       class="form-control"
-                       value="{{ settings_obj.default_slot_minutes }}">
-                <div class="help-text">Used as a reference for doctor schedules.</div>
-              </div>
-            </div>
-
-            <hr class="my-3">
-
-            <div class="form-section-title">Access Controls</div>
-
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox"
-                     id="allow_patient_registration"
-                     name="allow_patient_registration"
-                     {% if settings_obj.allow_patient_registration %}checked{% endif %}>
-              <label class="form-check-label" for="allow_patient_registration">
-                Allow new patient registrations
-              </label>
-            </div>
-
-            <div class="form-check mb-2">
-              <input class="form-check-input" type="checkbox"
-                     id="allow_doctor_registration"
-                     name="allow_doctor_registration"
-                     {% if settings_obj.allow_doctor_registration %}checked{% endif %}>
-              <label class="form-check-label" for="allow_doctor_registration">
-                Allow new doctor registrations
-              </label>
-            </div>
-
-            <div class="form-check mb-3">
-              <input class="form-check-input" type="checkbox"
-                     id="maintenance_mode"
-                     name="maintenance_mode"
-                     {% if settings_obj.maintenance_mode %}checked{% endif %}>
-              <label class="form-check-label" for="maintenance_mode">
-                Maintenance mode (read-only, for future use)
-              </label>
-              <div class="help-text">
-                This flag is stored now. You can later use it to disable bookings
-                during maintenance windows.
-              </div>
-            </div>
-
-            <button class="btn btn-primary">Save Settings</button>
-          </form>
+            </label>
         </div>
+
+        <div class="mb-3">
+          <label class="form-label">Support Phone</label>
+          <input type="text" class="form-control" name="support_phone"
+                 value="{{ settings_obj.support_phone }}">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Default Slot (minutes)</label>
+          <input type="number" class="form-control" name="default_slot_minutes"
+                 value="{{ settings_obj.default_slot_minutes|default:15 }}">
+          <div class="form-text">Used as a reference for appointment time slots.</div>
+        </div>
+
+        <h5 class="fw-bold mt-3 mb-2">Access Control</h5>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="allow_patient_registration"
+                 id="allow_patient_registration"
+                 {% if settings_obj.allow_patient_registration %}checked{% endif %}>
+          <label class="form-check-label" for="allow_patient_registration">
+            Allow new patient registrations
+          </label>
+        </div>
+
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="allow_doctor_registration"
+                 id="allow_doctor_registration"
+                 {% if settings_obj.allow_doctor_registration %}checked{% endif %}>
+          <label class="form-check-label" for="allow_doctor_registration">
+            Allow new doctor registrations
+          </label>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="maintenance_mode"
+                 id="maintenance_mode"
+                 {% if settings_obj.maintenance_mode %}checked{% endif %}>
+          <label class="form-check-label" for="maintenance_mode">
+            Maintenance mode (read-only, block new registrations and bookings)
+          </label>
+        </div>
+
+        <button class="btn btn-primary">Save Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="col-lg-4 mt-3 mt-lg-0">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">Current Summary</h5>
+        <p class="mb-1"><strong>Site:</strong> {{ settings_obj.site_name }}</p>
+        <p class="mb-1"><strong>Hospital:</strong> {{ settings_obj.hospital_name|default:"—" }}</p>
+        <p class="mb-1"><strong>Email:</strong> {{ settings_obj.support_email|default:"—" }}</p>
+        <p class="mb-1"><strong>Phone:</strong> {{ settings_obj.support_phone|default:"—" }}</p>
+        <p class="mb-1"><strong>Default Slot:</strong> {{ settings_obj.default_slot_minutes|default:15 }} min</p>
+        <p class="mb-1"><strong>Patient Registration:</strong>
+          {% if settings_obj.allow_patient_registration %}Allowed{% else %}Blocked{% endif %}
+          </p>
+        <p class="mb-1"><strong>Doctor Registration:</strong>
+          {% if settings_obj.allow_doctor_registration %}Allowed{% else %}Blocked{% endif %}
+        </p>
+        <p class="mb-0"><strong>Maintenance:</strong>
+          {% if settings_obj.maintenance_mode %}ON{% else %}OFF{% endif %}
+        </p>
       </div>
     </div>
-
-    <div class="col-lg-4">
-      <div class="card card-shadow border-0 mb-3">
-        <div class="card-body">
-          <h6 class="fw-semibold mb-2">Current Summary</h6>
-          <p class="mb-1"><strong>Site:</strong> {{ settings_obj.site_name }}</p>
-          <p class="mb-1"><strong>Hospital:</strong> {{ settings_obj.hospital_name|default:"—" }}</p>
-          <p class="mb-1"><strong>Email:</strong> {{ settings_obj.support_email|default:"—" }}</p>
-          <p class="mb-1"><strong>Phone:</strong> {{ settings_obj.support_phone|default:"—" }}</p>
-          <p class="mb-1"><strong>Default Slot:</strong> {{ settings_obj.default_slot_minutes }} min</p>
-          <p class="mb-1"><strong>Patient Registration:</strong>
-            {% if settings_obj.allow_patient_registration %}Allowed{% else %}Blocked{% endif %}
-          </p>
-          <p class="mb-1"><strong>Doctor Registration:</strong>
-            {% if settings_obj.allow_doctor_registration %}Allowed{% else %}Blocked{% endif %}
-          </p>
-          <p class="mb-0"><strong>Maintenance:</strong>
-            {% if settings_obj.maintenance_mode %}ON{% else %}OFF{% endif %}
-          </p>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>
-
-</body>
-</html>
+{% endblock %}
