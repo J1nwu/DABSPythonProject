@@ -155,7 +155,7 @@
           <tbody>
           {% for d in daily_counts %}
             <tr>
-              <td>{{ d.day }}</td>
+              <td>{{ d.date }}</td>
               <td>{{ d.total }}</td>
               <td>{{ d.pending }}</td>
               <td>{{ d.approved }}</td>
@@ -170,10 +170,13 @@
     </div>
   </div>
 
-  <!-- Sample appointments table -->
+    <!-- Appointments table (filtered) -->
   <div class="card mb-4">
     <div class="card-body">
-      <h5 class="fw-bold mb-3">Sample Appointments (max 100 rows)</h5>
+      <h5 class="fw-bold mb-1">Appointment History</h5>
+      <p class="text-muted small mb-3">
+        List of appointments matching the selected filters, ordered by latest date and time.
+      </p>
       <div class="table-responsive">
         <table class="table table-striped align-middle">
           <thead class="table-light">
@@ -203,7 +206,7 @@
               <td>{{ a.status }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="9" class="text-muted">No appointments found.</td></tr>
+            <tr><td colspan="9" class="text-muted">No appointments found for the selected criteria.</td></tr>
           {% endfor %}
           </tbody>
         </table>

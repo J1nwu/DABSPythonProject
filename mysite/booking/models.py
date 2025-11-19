@@ -117,3 +117,34 @@ class SecurityLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.timestamp:%d-%b %Y %H:%M:%S} | {self.user}"
+# --- System-wide admin settings (single row) --------------------
+from django.db import models
+from django.contrib.auth.models import User
+
+
+class SystemSetting(models.Model):
+    """
+    Simple key settings for the whole DABS system.
+    We will usually keep exactly ONE row (id = 1).
+    """
+    site_name = models.CharField(max_length=80, default="DABS")
+    hospital_name = models.CharField(max_length=120, blank=True)
+    support_email = models.EmailField(blank=True)
+    support_phone = models.CharField(max_length=40, blank=True)
+
+    default_slot_minutes = models.PositiveIntegerField(default=15)
+    allow_patient_registration = models.BooleanField(default=True)
+    allow_doctor_registration = models.BooleanField(default=True)
+    maintenance_mode = models.BooleanField(default=False)
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="settings_updates",
+    )
+
+    def __str__(self):
+        return f"System Settings ({self.site_name})"
