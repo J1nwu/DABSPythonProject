@@ -558,7 +558,6 @@ def doctor_appointments(request):
 
     return render(request, "booking/doctor_appointments.html", {"appts": appts})
 
-
 @login_required
 def doctor_patients(request):
     """
@@ -576,11 +575,19 @@ def doctor_patients(request):
         .values_list("patient_id", flat=True)
         .distinct()
     )
+
     patients = UserModel.objects.filter(id__in=patient_ids).order_by(
         "first_name", "last_name"
     )
 
-    return render(request, "booking/doctor_patients.html", {"patients": patients})
+    return render(
+        request,
+        "booking/doctor_patients.html",
+        {
+            "patients": patients,
+            "active_menu": "patients",  # for left-menu highlight
+        },
+    )
 
 
 # ============================

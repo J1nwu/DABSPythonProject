@@ -1,0 +1,257 @@
+/* =========================================
+   DABS – Shared Dashboard Styling
+   File: booking/static/booking/dashboard.css
+   ========================================= */
+
+/* ---- Global look ---- */
+
+:root {
+    --dabs-blue: #0056b3;
+    --dabs-blue-dark: #003f82;
+    --dabs-bg: #f5f7fb;
+    --dabs-border: #e1e4eb;
+    --dabs-text-main: #222;
+    --dabs-text-muted: #6c757d;
+    --dabs-card-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+body {
+    background-color: var(--dabs-bg);
+}
+
+/* Optional: if your base templates wrap content in this container */
+.dabs-shell {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 2.5rem;
+}
+
+/* ---- Top blue bar (brand + logout) ---- */
+
+.dabs-topbar {
+    background: linear-gradient(90deg, var(--dabs-blue), var(--dabs-blue-dark));
+    color: #fff;
+}
+
+.dabs-topbar .navbar-brand,
+.dabs-topbar .navbar-text {
+    font-weight: 600;
+}
+
+.dabs-topbar .navbar-text small {
+    font-weight: 400;
+    opacity: 0.85;
+}
+
+/* Keep brand + logout aligned even on small screens */
+.dabs-topbar .container,
+.dabs-topbar .container-fluid {
+    max-width: 1200px;
+}
+
+/* ---- Layout: sidebar + main area ---- */
+
+.dabs-dashboard-layout {
+    display: flex;
+    gap: 1.25rem;
+}
+
+/* Sidebar column – used across Admin / Doctor / Patient */
+
+.dashboard-sidebar {
+    width: 230px;
+    flex-shrink: 0;
+    background-color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid var(--dabs-border);
+    box-shadow: var(--dabs-card-shadow);
+    overflow: hidden;
+}
+
+/* For pages where sidebar is inside Bootstrap grid, make sure it stays left */
+@media (max-width: 767.98px) {
+    .dabs-dashboard-layout {
+        flex-direction: column;
+    }
+
+    .dashboard-sidebar {
+        width: 100%;
+    }
+}
+
+/* Sidebar items (list-group) */
+
+.dashboard-sidebar .list-group-item {
+    border: 0;
+    border-bottom: 1px solid var(--dabs-border);
+    padding: 0.65rem 1rem;
+    font-size: 0.92rem;
+    color: var(--dabs-text-main);
+    background-color: #ffffff;
+}
+
+.dashboard-sidebar .list-group-item:last-child {
+    border-bottom: none;
+}
+
+.dashboard-sidebar .list-group-item.active,
+.dashboard-sidebar .list-group-item.active:focus,
+.dashboard-sidebar .list-group-item.active:hover {
+    background-color: var(--dabs-blue);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.dashboard-sidebar .list-group-item:hover {
+    background-color: #f1f4ff;
+}
+
+/* Main content area */
+
+.dashboard-main {
+    flex: 1;
+}
+
+/* Generic headings across all dashboards */
+
+.dashboard-main-title {
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: var(--dabs-text-main);
+    margin-bottom: 0.4rem;
+}
+
+.dashboard-main-subtitle {
+    font-size: 0.93rem;
+    color: var(--dabs-text-muted);
+    margin-bottom: 1.2rem;
+}
+
+/* ---- Compact statistic cards ---- */
+
+.stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.stat-card {
+    flex: 1 1 0;
+    min-width: 180px;        /* lets 3–4 cards sit in one row */
+    background-color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid var(--dabs-border);
+    padding: 0.75rem 1rem;   /* compact padding (smaller cards) */
+    box-shadow: var(--dabs-card-shadow);
+}
+
+.stat-card-header {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--dabs-text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.stat-card-value {
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: var(--dabs-text-main);
+}
+
+/* Small muted helper text (optional) */
+.stat-card-note {
+    font-size: 0.8rem;
+    color: var(--dabs-text-muted);
+    margin-top: 0.15rem;
+}
+
+/* ---- Quick summary panel ---- */
+
+.quick-summary-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid var(--dabs-border);
+    padding: 0.9rem 1rem;
+    box-shadow: var(--dabs-card-shadow);
+    margin-top: 0.5rem;
+}
+
+.quick-summary-card h5 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.quick-summary-card p {
+    margin-bottom: 0;
+    font-size: 0.92rem;
+    color: var(--dabs-text-muted);
+}
+
+/* ---- Tables (appointments, patients, reports, logs) ---- */
+
+.dashboard-table-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    border: 1px solid var(--dabs-border);
+    box-shadow: var(--dabs-card-shadow);
+    padding: 0.9rem 1rem;
+    margin-top: 1rem;
+}
+
+.dashboard-table-card h6 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-table-card table {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+.dashboard-table-card thead th {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid var(--dabs-border) !important;
+}
+
+/* ---- Filters row above tables ---- */
+
+.filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.filter-bar .form-control,
+.filter-bar .form-select {
+    font-size: 0.9rem;
+    height: calc(2rem + 2px);
+    padding: 0.25rem 0.5rem;
+}
+
+.filter-bar .btn {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.9rem;
+}
+
+/* ---- Badges / status labels ---- */
+
+.badge-status {
+    font-size: 0.78rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+}
+
+/* ---- Small utilities ---- */
+
+.text-muted-soft {
+    color: var(--dabs-text-muted) !important;
+}
+
+.mb-6 {
+    margin-bottom: 1.75rem !important;
+}
