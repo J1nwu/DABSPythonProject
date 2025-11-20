@@ -96,6 +96,10 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(args, kwargs)
+        self.id = None
+
     def __str__(self) -> str:
         return f"{self.patient.username} → Dr. {self.doctor.user.last_name} ({self.status})"
 

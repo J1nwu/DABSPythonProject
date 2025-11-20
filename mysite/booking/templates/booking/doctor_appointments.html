@@ -6,16 +6,20 @@
 
 <form class="row g-2 mb-3" method="get">
   <div class="col-md-4">
-    <input class="form-control" type="text" name="q"
-           placeholder="Search by patient or note" value="{{ q }}">
+      <label>
+          <input class="form-control" type="text" name="q"
+                 placeholder="Search by patient or note" value="{{ q }}">
+      </label>
   </div>
   <div class="col-md-3">
-    <select class="form-select" name="status">
-      <option value="">All Status</option>
-      <option value="Pending"   {% if status == 'Pending' %}selected{% endif %}>Pending</option>
-      <option value="Approved"  {% if status == 'Approved' %}selected{% endif %}>Approved</option>
-      <option value="Cancelled" {% if status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
-    </select>
+      <label>
+          <select class="form-select" name="status">
+            <option value="">All Status</option>
+            <option value="Pending"   {% if status =='Pending' %}selected{% endif %}>Pending</option>
+            <option value="Approved"  {% if status =='Approved' %}selected{% endif %}>Approved</option>
+            <option value="Cancelled" {% if status =='Cancelled' %}selected{% endif %}>Cancelled</option>
+          </select>
+      </label>
   </div>
   <div class="col-md-3">
     <button class="btn btn-primary">Filter</button>
