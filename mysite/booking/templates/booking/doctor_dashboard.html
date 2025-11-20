@@ -1,42 +1,43 @@
 {% extends "booking/doctor_base.html" %}
-{% load static %}
 
-{% block page_title %} — Dashboard{% endblock %}
+{% block title %}Doctor Dashboard – DABS{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">Doctor Dashboard</h3>
 
-<div class="row g-3 mb-4">
-  <div class="col-sm-4">
-    <div class="card shadow-sm">
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Today's Appointments</h6>
-        <p class="display-6 mb-0">{{ today_appointments|default:0 }}</p>
+        <div class="text-uppercase text-muted small">Today's Appointments</div>
+        <div class="fs-3 fw-bold mb-0">{{ today_appointments|default:0 }}</div>
       </div>
     </div>
   </div>
-  <div class="col-sm-4">
-    <div class="card shadow-sm">
+
+  <div class="col-md-4">
+    <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Pending Approvals</h6>
-        <p class="display-6 mb-0">{{ pending_approvals|default:0 }}</p>
+        <div class="text-uppercase text-muted small">Pending Approvals</div>
+        <div class="fs-3 fw-bold mb-0">{{ pending_approvals|default:0 }}</div>
       </div>
     </div>
   </div>
-  <div class="col-sm-4">
-    <div class="card shadow-sm">
+
+  <div class="col-md-4">
+    <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
-        <h6 class="text-muted text-uppercase small">Total Patients</h6>
-        <p class="display-6 mb-0">{{ total_patients|default:0 }}</p>
+        <div class="text-uppercase text-muted small">Total Patients</div>
+        <div class="fs-3 fw-bold mb-0">{{ total_patients|default:0 }}</div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm border-0">
   <div class="card-body">
-    <h5 class="card-title">Quick Summary</h5>
-    <p class="card-text">
+    <h5 class="fw-bold">Quick Summary</h5>
+    <p class="text-muted mb-0">
       Use the menu on the left to review appointment requests, manage your patients,
       and keep track of your schedule.
     </p>

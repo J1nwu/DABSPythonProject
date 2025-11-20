@@ -1,4 +1,5 @@
 {% extends "booking/admin_base.html" %}
+{% block title %}Manage Patients – DABS{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">Manage Patients</h3>
@@ -12,7 +13,7 @@
   </div>
   <div class="col-md-3">
     <button class="btn btn-primary">Filter</button>
-    <a class="btn btn-outline-secondary ms-1" href=".">Reset</a>
+    <a class="btn btn-outline-secondary ms-1" href="{% url 'admin_patients' %}">Reset</a>
   </div>
 </form>
 
@@ -33,17 +34,28 @@
     {% for p in patients %}
       <tr>
         <td>{{ p.id }}</td>
-        <td>{{ p.user.get_full_name }}</td>
-        <td>{{ p.user.username }}</td>
-        <td>{{ p.user.email }}</td>
-        <td>{{ p.total_appointments }}</td>
+
+        <td>
+          {% if p.get_full_name %}
+            {{ p.get_full_name }}
+          {% else %}
+            {{ p.username }}
+          {% endif %}
+        </td>
+
+        <td>{{ p.username }}</td>
+        <td>{{ p.email }}</td>
+
+        {# Appointment.patient is FK to User, so reverse name is appointment_set #}
+        <td>{{ p.appointment_set.count }}</td>
+
         <td>
           <span class="badge bg-{% if p.is_active %}success{% else %}secondary{% endif %}">
             {% if p.is_active %}Active{% else %}Inactive{% endif %}
           </span>
         </td>
+
         <td>
-          <!-- These POST back to the same view; your view can read action + patient_id -->
           <form method="post" action="" class="d-inline">
             {% csrf_token %}
             <input type="hidden" name="patient_id" value="{{ p.id }}">

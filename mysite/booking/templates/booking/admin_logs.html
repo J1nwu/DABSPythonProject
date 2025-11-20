@@ -1,18 +1,21 @@
 {% extends "booking/admin_base.html" %}
+{% block title %}System Logs – DABS{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">System Logs</h3>
 
 <form class="row g-2 mb-3" method="get">
   <div class="col-md-4">
-    <input class="form-control"
-           name="q"
-           placeholder="Filter by user name"
-           value="{{ q }}">
+      <label>
+          <input class="form-control"
+                 name="q"
+                 placeholder="Filter by user name"
+                 value="{{ q }}">
+      </label>
   </div>
   <div class="col-md-3">
     <button class="btn btn-primary">Apply Filter</button>
-    <a class="btn btn-outline-secondary ms-1" href=".">Reset</a>
+    <a class="btn btn-outline-secondary ms-1" href="{% url 'admin_logs' %}">Reset</a>
   </div>
 </form>
 
@@ -28,7 +31,7 @@
     <tbody>
     {% for log in logs %}
       <tr>
-        <td>{{ log.created_at|date:"M j, Y g:i a" }}</td>
+        <td>{{ log.timestamp|date:"M j, Y g:i a" }}</td>
         <td>{{ log.user.username }}</td>
         <td>{{ log.action }}</td>
       </tr>

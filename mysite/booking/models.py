@@ -110,13 +110,21 @@ class Notification(models.Model):
         return f"To {self.user.username}: {self.message[:40]}"
 
 
+from django.conf import settings
+
 class SecurityLog(models.Model):
-    user = models.CharField(max_length=80)
-    action = models.TextField()
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    action = models.CharField(max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self) -> str:
-        return f"{self.timestamp:%d-%b %Y %H:%M:%S} | {self.user}"
+    def str(self):
+        return f"{self.timestamp} - {self.user} - {self.action}"
+
 # --- System-wide admin settings (single row) --------------------
 from django.db import models
 from django.contrib.auth.models import User

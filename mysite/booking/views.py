@@ -9,7 +9,6 @@ from django.contrib.auth import (
     get_user_model,
 )
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Count
 from django.http import (
     Http404,
     HttpResponse,
@@ -20,8 +19,6 @@ from django.shortcuts import (
     redirect,
     render,
 )
-from django.utils import timezone
-from django.utils.dateparse import parse_date
 
 from .models import DoctorProfile, Appointment, SystemSetting
 
@@ -775,22 +772,21 @@ def admin_patients(request):
 
     UserModel = get_user_model()
 
-    patients = UserModel.objects.filter(is_staff=False)
-
-    # exclude doctor accounts
+    # base queryset = all non-staff users, excluding those that are doctors
+    base_qs = UserModel.objects.filter(is_staff=False)
     doctor_user_ids = (
         DoctorProfile.objects.values_list("user_id", flat=True).distinct()
     )
-    patients = patients.exclude(id__in=doctor_user_ids)
+    base_qs = base_qs.exclude(id__in=doctor_user_ids)
 
-    # POST actions
+    # ---- POST: actions on a single patient ----
     if request.method == "POST":
         patient_id = request.POST.get("patient_id")
         action = request.POST.get("action")
 
         if patient_id and action:
             try:
-                p = patients.get(id=patient_id)
+                p = base_qs.get(id=patient_id)
             except UserModel.DoesNotExist:
                 messages.error(request, "Patient not found.")
                 return redirect("admin_patients")
@@ -811,7 +807,8 @@ def admin_patients(request):
 
         return redirect("admin_patients")
 
-    # GET filters
+    # ---- GET: filters + listing ----
+    patients = base_qs
     q = request.GET.get("q", "").strip()
     if q:
         patients = patients.filter(
@@ -832,7 +829,6 @@ def admin_patients(request):
             "section": "patients",
         },
     )
-
 
 # ============================
 # ADMIN: APPOINTMENTS + CSV
@@ -991,43 +987,53 @@ def admin_export_appointments_csv(request):
 # ADMIN: REPORTS
 # ============================
 
+from django.utils import timezone
+
+from django.db.models import Count, Q
+from django.utils.dateparse import parse_date
+
 @login_required
 def admin_reports(request):
     """
     Admin Reports:
-      - Filters: doctor, status, start, end
-      - Summary cards
-      - Status table
-      - Daily breakdown (SQLite-safe, no TruncDate)
-      - Filtered appointments table (first 100 rows)
+      - Filters: doctor, status, start_date, end_date
+      - Summary cards (respecting filters)
+      - Status breakdown
+      - Daily breakdown (last 30 days of RESULT, respecting filters)
+      - Appointment History: ALL matching appointments (no 30-day limit, no slice)
     """
     if not request.user.is_staff:
         return redirect("home")
 
-    doctor_id = request.GET.get("doctor", "").strip()
-    status = request.GET.get("status", "").strip()
-    start = request.GET.get("start", "").strip()
-    end = request.GET.get("end", "").strip()
+    # ---- read filters from GET ----
+    doctor_id = (request.GET.get("doctor") or "").strip()
+    status_filter = (request.GET.get("status") or "").strip()
+    start_raw = (request.GET.get("start_date") or "").strip()
+    end_raw = (request.GET.get("end_date") or "").strip()
 
+    # base queryset = ALL appointments (latest first)
     qs = (
-        Appointment.objects.select_related("patient", "doctor", "doctor__user")
+        Appointment.objects
+        .select_related("patient", "patientuser", "doctor", "doctoruser")
         .order_by("-date", "-time")
     )
 
+    # apply filters
     if doctor_id:
         qs = qs.filter(doctor_id=doctor_id)
 
-    if status:
-        qs = qs.filter(status=status)
+    if status_filter:
+        qs = qs.filter(status=status_filter)
 
-    start_date = parse_date(start) if start else None
-    end_date = parse_date(end) if end else None
+    start_date = parse_date(start_raw) if start_raw else None
+    end_date = parse_date(end_raw) if end_raw else None
 
     if start_date:
         qs = qs.filter(date__gte=start_date)
     if end_date:
         qs = qs.filter(date__lte=end_date)
 
+    # ---- summary numbers (based on filtered qs) ----
     total_appointments = qs.count()
     pending_count = qs.filter(status="Pending").count()
     approved_count = qs.filter(status="Approved").count()
@@ -1035,46 +1041,46 @@ def admin_reports(request):
 
     status_counts = (
         qs.values("status")
-        .annotate(total=Count("id"))
-        .order_by()
+          .annotate(total=Count("id"))
+          .order_by()
     )
 
     daily_counts = (
         qs.filter(date__isnull=False)
-        .values("date")
-        .annotate(
-            total=Count("id"),
-            pending=Count("id", filter=Q(status="Pending")),
-            approved=Count("id", filter=Q(status="Approved")),
-            cancelled=Count("id", filter=Q(status="Cancelled")),
-        )
-        .order_by("-date")[:30]
+          .values("date")
+          .annotate(
+              total=Count("id"),
+              pending=Count("id", filter=Q(status="Pending")),
+              approved=Count("id", filter=Q(status="Approved")),
+              cancelled=Count("id", filter=Q(status="Cancelled")),
+          )
+          .order_by("-date")[:30]   # 30 days *in RESULT*, only for this table
     )
 
+    # doctor list for the dropdown
     doctors = (
-        DoctorProfile.objects.select_related("user")
-        .order_by("user__first_name", "user__last_name")
+        DoctorProfile.objects
+        .select_related("user")
+        .order_by("userfirst_name", "userlast_name")
     )
-
-    sample_appointments = qs[:100]
 
     context = {
         "section": "reports",
         "doctors": doctors,
-        "filter_doctor": doctor_id,
-        "filter_status": status,
-        "start": start,
-        "end": end,
+        "doctor_filter": doctor_id,
+        "status_filter": status_filter,
+        "start_date": start_raw,
+        "end_date": end_raw,
         "total_appointments": total_appointments,
         "pending_count": pending_count,
         "approved_count": approved_count,
         "cancelled_count": cancelled_count,
         "status_counts": status_counts,
         "daily_counts": daily_counts,
-        "appointments": sample_appointments,
+        # IMPORTANT: full queryset, NO slice, NO 30-day limit here
+        "appointments": qs,
     }
     return render(request, "booking/admin_reports.html", context)
-
 
 # ============================
 # ADMIN: SETTINGS
@@ -1143,26 +1149,27 @@ from django.core.paginator import Paginator
 
 @login_required
 def admin_logs(request):
-    """
-    Show SecurityLog entries (system activity log) to staff/admin users.
-    """
     if not request.user.is_staff:
         return redirect("home")
 
     from .models import SecurityLog
 
-    # Optional basic filter by user substring
     q = request.GET.get("q", "").strip()
-    logs = SecurityLog.objects.all().order_by("-timestamp")
-    if q:
-        logs = logs.filter(user__icontains=q)
 
-    paginator = Paginator(logs, 50)  # 50 entries per page
+    logs = SecurityLog.objects.select_related("user").order_by("-timestamp")
+    if q:
+        logs = logs.filter(userusernameicontains=q)
+
+    paginator = Paginator(logs, 50)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    context = {
-        "section": "logs",
-        "page_obj": page_obj,
-        "q": q,
-    }
-    return render(request, "booking/admin_logs.html", context)
+    return render(
+        request,
+        "booking/admin_logs.html",
+        {
+            "section": "logs",
+            "logs": page_obj,   # iterable for the template
+            "page_obj": page_obj,
+            "q": q,
+        },
+    )
