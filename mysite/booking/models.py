@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
-
+from django.contrib.auth.models import User
+from django.db import models
 
 class DoctorProfile(models.Model):
     STATUS_CHOICES = [
@@ -57,7 +58,6 @@ class DoctorProfile(models.Model):
         full_name = self.user.get_full_name() or self.user.username
         return f"Dr. {full_name} — {self.specialization}"
 
-
 class Appointment(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
@@ -81,10 +81,8 @@ class Appointment(models.Model):
 
     department = models.CharField(max_length=100)
     hospital = models.CharField(max_length=120)
-
     date = models.DateField()
     time = models.TimeField()
-
     symptoms = models.TextField(blank=True)
 
     status = models.CharField(
@@ -96,13 +94,8 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(args, kwargs)
-        self.id = None
-
     def __str__(self) -> str:
         return f"{self.patient.username} → Dr. {self.doctor.user.last_name} ({self.status})"
-
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -160,3 +153,36 @@ class SystemSetting(models.Model):
 
     def __str__(self):
         return f"System Settings ({self.site_name})"
+
+class SystemLog(models.Model):
+    EVENT_TYPES = [
+        ("login", "User login"),
+        ("logout", "User logout"),
+        ("login_failed", "User login failed"),
+        ("user_created", "User created"),
+        ("appointment_created", "Appointment created"),
+        ("appointment_updated", "Appointment updated"),
+        ("appointment_deleted", "Appointment deleted"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="system_logs",
+    )
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
+    message = models.TextField()
+
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        username = self.user.username if self.user else "system"
+        return f"[{self.created_at:%Y-%m-%d %H:%M}] {self.event_type} ({username})"

@@ -3,44 +3,58 @@
 {% block content %}
 <h3 class="fw-bold mb-3">All Appointments</h3>
 
-<form class="row g-2 mb-3" method="get">
-  <div class="col-md-3">
-    <input class="form-control"
-           name="q"
-           placeholder="Search patient, doctor, hospital"
-           value="{{ q }}">
+<form class="row g-2 mb-3 align-items-end" method="get">
+  <div class="col-md-4">
+    <input
+      class="form-control"
+      name="q"
+      placeholder="Search patient, doctor, hospital"
+      value="{{ q }}"
+    >
   </div>
 
   <div class="col-md-2">
     <select class="form-select" name="status">
       <option value="">All Status</option>
-      <option value="Pending"  {% if status == "Pending" %}selected{% endif %}>Pending</option>
-      <option value="Approved" {% if status == "Approved" %}selected{% endif %}>Approved</option>
-      <option value="Cancelled" {% if status == "Cancelled" %}selected{% endif %}>Cancelled</option>
+      <option value="Pending"   {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
+      <option value="Approved"  {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
+      <option value="Cancelled" {% if status_filter == "Cancelled" %}selected{% endif %}>Cancelled</option>
+      <option value="Completed" {% if status_filter == "Completed" %}selected{% endif %}>Completed</option>
     </select>
   </div>
 
   <div class="col-md-2">
-    <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
-  </div>
-  <div class="col-md-2">
-    <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+    <input
+      type="date"
+      class="form-control"
+      name="start_date"
+      value="{{ start_date }}"
+    >
   </div>
 
-  <div class="col-md-3 d-flex gap-2">
-    <button class="btn btn-primary flex-grow-1">Filter</button>
+  <div class="col-md-2">
+    <input
+      type="date"
+      class="form-control"
+      name="end_date"
+      value="{{ end_date }}"
+    >
+  </div>
+
+  <div class="col-md-2 d-flex gap-2">
+    <button class="btn btn-primary flex-grow-1" type="submit">Filter</button>
     <a class="btn btn-outline-secondary" href=".">Reset</a>
   </div>
 </form>
 
-<form method="get" action="{% url 'admin_export_appointments_csv' %}" class="mb-3">
-  <!-- Preserve current filters when exporting -->
-  <input type="hidden" name="q" value="{{ q }}">
-  <input type="hidden" name="status" value="{{ status }}">
-  <input type="hidden" name="start_date" value="{{ start_date }}">
-  <input type="hidden" name="end_date" value="{{ end_date }}">
-  <button class="btn btn-outline-secondary btn-sm">Export CSV</button>
-</form>
+<div class="d-flex justify-content-end mb-2">
+  <a
+    href="{% url 'admin_appointments_export' %}?q={{ q }}&status={{ status_filter }}&start_date={{ start_date }}&end_date={{ end_date }}"
+    class="btn btn-outline-secondary btn-sm"
+  >
+    Export CSV
+  </a>
+</div>
 
 <div class="table-responsive">
   <table class="table table-striped align-middle">
@@ -58,30 +72,44 @@
       </tr>
     </thead>
     <tbody>
-    {% for an in appointments %}
+      {% for a in appointments %}
       <tr>
         <td>{{ a.id }}</td>
-        <td>{{ a.code }}</td>
-        <td>{{ a.patient.user.get_full_name }}</td>
-        <td>Dr. {{ a.doctor.user.get_full_name }}</td>
+        <td>A-10{{ a.id }}</td>
+
+        {# patient: full name or username fallback #}
+        <td>{{ a.patient.get_full_name|default:a.patient.username }}</td>
+
+        {# doctor: show "Dr. <name>" or "-" if missing #}
+        <td>
+          {% if a.doctor and a.doctor.user %}
+            Dr. {{ a.doctor.user.get_full_name|default:a.doctor.user.username }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+
         <td>{{ a.doctor.specialization }}</td>
-        <td>{{ a.doctor.hospital }}</td>
+        <td>{{ a.hospital }}</td>
         <td>{{ a.date|date:"M j, Y" }}</td>
         <td>{{ a.time|time:"g:i a" }}</td>
         <td>
           <span class="badge
-            {% if a.status == 'Approved' %}bg-success
-            {% elif a.status == 'Cancelled' %}bg-danger
-            {% else %}bg-warning text-dark{% endif %}">
+            {% if a.status == 'Approved' %} bg-success
+            {% elif a.status == 'Cancelled' %} bg-danger
+            {% elif a.status == 'Completed' %} bg-secondary
+            {% else %} bg-warning text-dark
+            {% endif %}
+          ">
             {{ a.status }}
           </span>
         </td>
       </tr>
-    {% empty %}
+      {% empty %}
       <tr>
         <td colspan="9" class="text-muted">No appointments found.</td>
       </tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
 </div>

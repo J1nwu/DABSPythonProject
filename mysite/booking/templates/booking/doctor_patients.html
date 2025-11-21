@@ -1,12 +1,15 @@
 {% extends "booking/doctor_base.html" %}
-{% block page_title %} — My Patients{% endblock %}
+
+{% block title %}Doctor – My Patients{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">My Patients</h3>
 
 <form class="row g-2 mb-3" method="get">
   <div class="col-md-4">
-    <input class="form-control" name="q" placeholder="Search patient name or email" value="{{ q }}">
+    <input class="form-control" name="q"
+           placeholder="Search patient name, username or email"
+           value="{{ q }}">
   </div>
   <div class="col-md-3">
     <button class="btn btn-primary">Filter</button>
@@ -28,10 +31,8 @@
     {% for p in patients %}
       <tr>
         <td>{{ p.id }}</td>
-        <!-- p is a User object -->
         <td>{{ p.get_full_name|default:p.username }}</td>
         <td>{{ p.email }}</td>
-        <!-- assumes view annotated total_appointments on the User queryset -->
         <td>{{ p.total_appointments|default:0 }}</td>
       </tr>
     {% empty %}

@@ -4,15 +4,35 @@
 <h3 class="fw-bold mb-3">System Logs</h3>
 
 <form class="row g-2 mb-3" method="get">
-  <div class="col-md-4">
-    <input class="form-control"
-           name="q"
-           placeholder="Filter by user name"
-           value="{{ q }}">
-  </div>
   <div class="col-md-3">
-    <button class="btn btn-primary">Apply Filter</button>
-    <a class="btn btn-outline-secondary ms-1" href=".">Reset</a>
+    <input
+      class="form-control"
+      type="text"
+      name="user"
+      placeholder="Search by username / name"
+      value="{{ user_q }}"
+    >
+  </div>
+
+  <div class="col-md-3">
+    <select class="form-select" name="event">
+      <option value="">All event types</option>
+      <option value="login"              {% if event == "login" %}selected{% endif %}>User login</option>
+      <option value="logout"             {% if event == "logout" %}selected{% endif %}>User logout</option>
+      <option value="login_failed"       {% if event == "login_failed" %}selected{% endif %}>Login failed</option>
+      <option value="user_created"       {% if event == "user_created" %}selected{% endif %}>User created</option>
+      <option value="appointment_created" {% if event == "appointment_created" %}selected{% endif %}>Appointment created</option>
+      <option value="appointment_updated" {% if event == "appointment_updated" %}selected{% endif %}>Appointment updated</option>
+      <option value="appointment_deleted" {% if event == "appointment_deleted" %}selected{% endif %}>Appointment deleted</option>
+    </select>
+  </div>
+
+  <div class="col-md-2">
+    <button class="btn btn-primary w-100">Filter</button>
+  </div>
+
+  <div class="col-md-2">
+    <a href="." class="btn btn-outline-secondary w-100">Reset</a>
   </div>
 </form>
 
@@ -20,23 +40,42 @@
   <table class="table table-striped align-middle">
     <thead class="table-light">
       <tr>
-        <th>Timestamp</th>
+        <th>Time</th>
         <th>User</th>
-        <th>Action</th>
+        <th>Event</th>
+        <th>Details</th>
+        <th>IP</th>
+        <th>Browser</th>
       </tr>
     </thead>
     <tbody>
-    {% for log in logs %}
+      {% for log in logs %}
       <tr>
-        <td>{{ log.timestamp|date:"M j, Y g:i a" }}</td>
-        <td>{{ log.user }}</td>
-        <td>{{ log.action }}</td>
+        <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+        <td>
+          {% if log.user %}
+            {{ log.user.username }}<br>
+            <small class="text-muted">{{ log.user.get_full_name }}</small>
+          {% else %}
+            <span class="text-muted">system / unknown</span>
+          {% endif %}
+        </td>
+        <td>{{ log.get_event_type_display }}</td>
+        <td style="white-space: pre-wrap;">{{ log.message }}</td>
+        <td>{{ log.ip_address|default:"-" }}</td>
+        <td>
+          {% if log.user_agent %}
+            <small class="text-muted">{{ log.user_agent }}</small>
+          {% else %}
+            -
+          {% endif %}
+        </td>
       </tr>
-    {% empty %}
+      {% empty %}
       <tr>
-        <td colspan="3" class="text-muted">No log entries recorded yet.</td>
+        <td colspan="6" class="text-muted">No log entries found.</td>
       </tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
 </div>

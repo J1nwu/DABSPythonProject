@@ -10,11 +10,9 @@
       rel="stylesheet"
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous">
-
   <link rel="stylesheet" href="{% static 'booking/dashboard.css' %}">
 </head>
 <body>
-
 <nav class="navbar navbar-expand-lg navbar-dark dabs-topbar">
   <div class="container-fluid">
     <span class="navbar-brand">
@@ -37,29 +35,35 @@
 
 <div class="dabs-shell">
   <div class="dabs-dashboard-layout">
-
     <!-- Sidebar -->
     <div class="dashboard-sidebar list-group">
       <a href="/dashboard/doctor/"
          class="list-group-item {% if request.path == '/dashboard/doctor/' %}active{% endif %}">
         Dashboard
       </a>
-      <a href="/dashboard/doctor/pending/"
-         class="list-group-item {% if request.path == '/dashboard/doctor/pending/' %}active{% endif %}">
+
+      <!-- FIXED: this was /dashboard/doctor/pending/ (404).
+           Now it matches your URL pattern /dashboard/doctor/approvals/ -->
+      <a href="/dashboard/doctor/approvals/"
+         class="list-group-item {% if request.path == '/dashboard/doctor/approvals/' %}active{% endif %}">
         Pending Approvals
       </a>
+
       <a href="/dashboard/doctor/appointments/"
          class="list-group-item {% if request.path == '/dashboard/doctor/appointments/' %}active{% endif %}">
         My Appointments
       </a>
+
       <a href="/dashboard/doctor/patients/"
          class="list-group-item {% if request.path == '/dashboard/doctor/patients/' %}active{% endif %}">
         My Patients
       </a>
+
       <a href="/dashboard/doctor/schedule/"
          class="list-group-item {% if request.path == '/dashboard/doctor/schedule/' %}active{% endif %}">
         My Schedule
       </a>
+
       <a href="#"
          class="list-group-item {% if request.path == '/dashboard/doctor/profile/' %}active{% endif %}">
         Profile (coming soon)
@@ -70,7 +74,6 @@
     <main class="dashboard-main">
       {% block content %}{% endblock %}
     </main>
-
   </div>
 </div>
 

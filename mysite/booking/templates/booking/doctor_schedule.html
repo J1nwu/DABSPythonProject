@@ -1,5 +1,6 @@
 {% extends "booking/doctor_base.html" %}
-{% block page_title %} — My Schedule{% endblock %}
+
+{% block title %}Doctor – My Schedule{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">My Schedule</h3>
@@ -23,7 +24,7 @@
       <tr>
         <td>{{ appt.date }}</td>
         <td>{{ appt.time }}</td>
-        <td>{{ appt.patient.user.get_full_name|default:appt.patient.user.username }}</td>
+        <td>{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
         <td>{{ appt.status }}</td>
       </tr>
     {% empty %}

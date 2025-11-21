@@ -1,11 +1,11 @@
 {% extends "booking/doctor_base.html" %}
-{% block page_title %} — Pending Approvals{% endblock %}
+
+{% block title %}Doctor – Pending Approvals{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">Pending Appointment Requests</h3>
-
 <p class="text-muted">
-  Review and approve or cancel appointment requests assigned to you.
+  Review and approve or reject appointment requests assigned to you.
 </p>
 
 <div class="table-responsive">
@@ -16,7 +16,7 @@
         <th>Patient</th>
         <th>Date</th>
         <th>Time</th>
-        <th>Reason</th>
+        <th>Symptoms / Reason</th>
         <th>Status</th>
         <th>Actions</th>
       </tr>
@@ -25,20 +25,21 @@
     {% for appt in pending_appointments %}
       <tr>
         <td>{{ appt.id }}</td>
-        <td>{{ appt.patient.user.get_full_name|default:appt.patient.user.username }}</td>
+        <td>{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
         <td>{{ appt.date }}</td>
         <td>{{ appt.time }}</td>
-        <td>{{ appt.reason|default:"—" }}</td>
+        <td>{{ appt.symptoms|default:"—" }}</td>
         <td>{{ appt.status }}</td>
         <td>
-          <form method="post" action="{% url 'doctor_approve_appointment' appt.id %}" class="d-inline">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-success">Approve</button>
-          </form>
-          <form method="post" action="{% url 'doctor_cancel_appointment' appt.id %}" class="d-inline ms-1">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-outline-danger">Cancel</button>
-          </form>
+          <a href="{% url 'doctor_approve' appt.id %}" class="btn btn-sm btn-success">
+            Approve
+          </a>
+          <a href="{% url 'doctor_reject' appt.id %}" class="btn btn-sm btn-outline-danger ms-1">
+            Reject
+          </a>
+          <a href="{% url 'doctor_reschedule' appt.id %}" class="btn btn-sm btn-outline-secondary ms-1">
+            Reschedule
+          </a>
         </td>
       </tr>
     {% empty %}

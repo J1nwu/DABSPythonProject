@@ -1,3 +1,4 @@
+# booking/urls.py
 from django.urls import path
 from . import views
 
@@ -38,10 +39,8 @@ urlpatterns = [
     path('dabs-admin/doctors/', views.admin_doctors, name='admin_doctors'),
     path('dabs-admin/patients/', views.admin_patients, name='admin_patients'),
     path('dabs-admin/appointments/', views.admin_appointments, name='admin_appointments'),
-    path('dabs-admin/appointments/export/csv/', views.admin_export_appointments_csv, name='admin_export_appointments_csv'),
+    path('dabs-admin/appointments/export/csv/', views.admin_appointments_export, name='admin_appointments_export'),
     path('dabs-admin/reports/', views.admin_reports, name='admin_reports'),
     path('dabs-admin/settings/', views.admin_settings, name='admin_settings'),
-path('dabs-admin/logs/', views.admin_logs, name='admin_logs'),
-
-
+    path('dabs-admin/logs/', views.admin_logs, name='admin_logs'),
 ]

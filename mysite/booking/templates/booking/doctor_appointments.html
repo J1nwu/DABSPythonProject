@@ -1,5 +1,6 @@
 {% extends "booking/doctor_base.html" %}
-{% block page_title %} — My Appointments{% endblock %}
+
+{% block title %}Doctor – My Appointments{% endblock %}
 
 {% block content %}
 <h3 class="fw-bold mb-3">My Appointments</h3>
@@ -11,16 +12,21 @@
                  placeholder="Search by patient or note" value="{{ q }}">
       </label>
   </div>
+
   <div class="col-md-3">
       <label>
           <select class="form-select" name="status">
             <option value="">All Status</option>
-            <option value="Pending"   {% if status =='Pending' %}selected{% endif %}>Pending</option>
-            <option value="Approved"  {% if status =='Approved' %}selected{% endif %}>Approved</option>
-            <option value="Cancelled" {% if status =='Cancelled' %}selected{% endif %}>Cancelled</option>
+            <option value="Pending"   {% if status == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Approved"  {% if status == 'Approved' %}selected{% endif %}>Approved</option>
+            <option value="Cancelled" {% if status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+            <option value="Completed" {% if status == 'Completed' %}selected{% endif %}>Completed</option>
+            <option value="Rescheduled" {% if status == 'Rescheduled' %}selected{% endif %}>Rescheduled</option>
+            <option value="Rejected" {% if status == 'Rejected' %}selected{% endif %}>Rejected</option>
           </select>
       </label>
   </div>
+
   <div class="col-md-3">
     <button class="btn btn-primary">Filter</button>
     <a href="." class="btn btn-outline-secondary ms-1">Reset</a>
@@ -42,7 +48,7 @@
     {% for appt in appointments %}
       <tr>
         <td>{{ appt.id }}</td>
-        <td>{{ appt.patient.user.get_full_name|default:appt.patient.user.username }}</td>
+        <td>{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
         <td>{{ appt.date }}</td>
         <td>{{ appt.time }}</td>
         <td>{{ appt.status }}</td>

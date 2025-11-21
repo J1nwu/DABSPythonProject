@@ -1,6 +1,17 @@
-import csv
-from datetime import date, datetime
+from datetime import datetime
 
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Count
+from django.http import Http404
+from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
+
+from .models import DoctorProfile, Appointment, SystemSetting
+
+from datetime import date, datetime
+from .utils import log_event
 from django.contrib import messages
 from django.contrib.auth import (
     authenticate,
@@ -11,7 +22,6 @@ from django.contrib.auth import (
 from django.contrib.auth.decorators import login_required
 from django.http import (
     Http404,
-    HttpResponse,
     HttpResponseForbidden,
 )
 from django.shortcuts import (
@@ -21,8 +31,8 @@ from django.shortcuts import (
 )
 
 from .models import DoctorProfile, Appointment, SystemSetting
+from .models import SecurityLog
 
-from .models import  SecurityLog
 
 def log_action(user, action: str) -> None:
     """
@@ -93,30 +103,6 @@ def post_login_redirect(request):
     """
     return route_after_login(request)
 
-@login_required
-def doctor_dashboard(request):
-    from django.shortcuts import get_object_or_404
-    profile = get_object_or_404(DoctorProfile, user=request.user)
-
-    # simple stats
-    today = timezone.localdate()
-    today_count = Appointment.objects.filter(doctor=profile, date=today).count()
-    pending_count = Appointment.objects.filter(doctor=profile, status="Pending").count()
-
-    stats = {
-        "today_count": today_count,
-        "pending_count": pending_count,
-    }
-
-    return render(
-        request,
-        "booking/doctor_dashboard.html",
-        {
-            "profile": profile,
-            "stats": stats,
-            "section": "dashboard",
-        },
-    )
 
 # ============================
 # PATIENT REGISTRATION / DASHBOARD
@@ -406,20 +392,69 @@ def reschedule_appointment(request, appt_id):
 # ============================
 
 @login_required
+def doctor_dashboard(request):
+    """
+    Simple doctor dashboard with basic stats.
+    """
+    profile = get_object_or_404(DoctorProfile, user=request.user)
+
+    today = timezone.localdate()
+
+    today_appointments = Appointment.objects.filter(
+        doctor=profile,
+        date=today,
+    ).count()
+
+    pending_approvals = Appointment.objects.filter(
+        doctor=profile,
+        status="Pending",
+    ).count()
+
+    total_patients = (
+        Appointment.objects.filter(doctor=profile)
+        .values("patient_id")
+        .distinct()
+        .count()
+    )
+
+    context = {
+        "profile": profile,
+        "today_appointments": today_appointments,
+        "pending_approvals": pending_approvals,
+        "total_patients": total_patients,
+        "section": "dashboard",
+    }
+    return render(request, "booking/doctor_dashboard.html", context)
+
+
+@login_required
 def doctor_approvals(request):
+    """
+    List all pending appointments for this doctor.
+    """
     try:
         doctor = DoctorProfile.objects.get(user=request.user)
     except DoctorProfile.DoesNotExist:
+        # If somehow a non-doctor hits this, send them to patient dashboard
         return redirect("patient_dashboard")
 
-    appts = Appointment.objects.filter(
-        doctor=doctor, status="Pending"
-    ).order_by("date", "time")
-    return render(request, "booking/doctor_approvals.html", {"appts": appts})
+    pending_appointments = (
+        Appointment.objects.filter(doctor=doctor, status="Pending")
+        .order_by("date", "time")
+    )
+
+    return render(
+        request,
+        "booking/doctor_approvals.html",
+        {"pending_appointments": pending_appointments},
+    )
 
 
 @login_required
 def doctor_approve(request, appt_id):
+    """
+    Approve a pending appointment.
+    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -427,12 +462,15 @@ def doctor_approve(request, appt_id):
 
     appt.status = "Approved"
     appt.save(update_fields=["status"])
-    messages.success(request, "Appointment Approved.")
+    messages.success(request, "Appointment approved.")
     return redirect("doctor_approvals")
 
 
 @login_required
 def doctor_reject(request, appt_id):
+    """
+    Reject a pending appointment.
+    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -440,12 +478,15 @@ def doctor_reject(request, appt_id):
 
     appt.status = "Rejected"
     appt.save(update_fields=["status"])
-    messages.success(request, "Appointment Rejected.")
+    messages.success(request, "Appointment rejected.")
     return redirect("doctor_approvals")
 
 
 @login_required
 def doctor_reschedule(request, appt_id):
+    """
+    Reschedule an appointment (doctor side).
+    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -454,6 +495,7 @@ def doctor_reschedule(request, appt_id):
     if request.method == "GET":
         return render(request, "booking/doctor_reschedule.html", {"appt": appt})
 
+    # POST
     new_date = request.POST.get("date", "").strip()
     new_time = request.POST.get("time", "").strip()
 
@@ -472,20 +514,116 @@ def doctor_reschedule(request, appt_id):
     appt.time = nt
     appt.status = "Rescheduled"
     appt.save(update_fields=["date", "time", "status"])
-    messages.success(request, "Appointment Rescheduled.")
+
+    messages.success(request, "Appointment rescheduled.")
     return redirect("doctor_approvals")
+
+
+from django.db.models import Q
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def doctor_appointments(request):
+    """
+    Doctor: view appointments with simple filters.
+    Shows ALL appointments for this doctor.
+    """
+    try:
+        doctor = DoctorProfile.objects.get(user=request.user)
+    except DoctorProfile.DoesNotExist:
+        return redirect("patient_dashboard")
+
+    # Base queryset: all appts for this doctor
+    qs = Appointment.objects.filter(doctor=doctor)
+
+    # --- Filters from GET ---
+    q = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "").strip()
+
+    # Text search: patient name / username / symptoms
+    if q:
+        qs = qs.filter(
+            Q(patient__first_name__icontains=q)
+            | Q(patient__last_name__icontains=q)
+            | Q(patient__username__icontains=q)
+            | Q(symptoms__icontains=q)
+        )
+
+    # Status filter
+    if status:
+        qs = qs.filter(status=status)
+
+    appointments = qs.order_by("-date", "-time")  # newest first
+
+    context = {
+        "appointments": appointments,
+        "q": q,
+        "status": status,
+    }
+    return render(request, "booking/doctor_appointments.html", context)
+
+
+@login_required
+def doctor_patients(request):
+    """
+    Doctor: list unique patients who have appointments with this doctor.
+    """
+    try:
+        doctor = DoctorProfile.objects.get(user=request.user)
+    except DoctorProfile.DoesNotExist:
+        return redirect("patient_dashboard")
+
+    UserModel = get_user_model()
+
+    patient_ids = (
+        Appointment.objects.filter(doctor=doctor)
+        .values_list("patient_id", flat=True)
+        .distinct()
+    )
+
+    patients_qs = UserModel.objects.filter(id__in=patient_ids)
+
+    q = request.GET.get("q", "").strip()
+    if q:
+        patients_qs = patients_qs.filter(
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(username__icontains=q)
+            | Q(email__icontains=q)
+        )
+
+    # patient_appointments = related_name on Appointment.patient
+    patients = (
+        patients_qs
+        .annotate(total_appointments=Count("patient_appointments"))
+        .order_by("first_name", "last_name")
+    )
+
+    return render(
+        request,
+        "booking/doctor_patients.html",
+        {
+            "patients": patients,
+            "q": q,
+        },
+    )
 
 
 @login_required
 def doctor_schedule(request):
     """
-    Doctor sets schedule; uses SystemSetting.default_slot_minutes as fallback.
+    Doctor schedule page.
+
+    - POST: update schedule fields on DoctorProfile
+    - GET: show all non-completed, non-pending, non-cancelled appointments
+      for this doctor (Approved + Rescheduled only), ordered oldest first.
     """
     try:
         profile = DoctorProfile.objects.get(user=request.user)
     except DoctorProfile.DoesNotExist:
         return redirect("patient_dashboard")
 
+    # System default slot minutes fallback
     settings_obj, _ = SystemSetting.objects.get_or_create(pk=1)
     if not profile.slot_minutes and settings_obj.default_slot_minutes:
         profile.slot_minutes = settings_obj.default_slot_minutes
@@ -498,6 +636,7 @@ def doctor_schedule(request):
         except ValueError:
             return None
 
+    # --- UPDATE SCHEDULE (POST) ---
     if request.method == "POST":
         working_days = request.POST.get("working_days", "").strip()
         start = request.POST.get("clinic_start_time", "").strip()
@@ -528,71 +667,24 @@ def doctor_schedule(request):
         messages.success(request, "Schedule updated.")
         return redirect("doctor_schedule")
 
-    return render(request, "booking/doctor_schedule.html", {"profile": profile})
-
-
-@login_required
-def doctor_appointments(request):
-    """
-    Doctor: view upcoming appointments, and mark them completed/cancelled.
-    """
-    try:
-        doctor = DoctorProfile.objects.get(user=request.user)
-    except DoctorProfile.DoesNotExist:
-        return redirect("patient_dashboard")
-
-    today = timezone.localdate()
-    appts = Appointment.objects.filter(
-        doctor=doctor,
-        date__gte=today,
-    ).order_by("date", "time")
-
-    if request.method == "POST":
-        appt_id = request.POST.get("appt_id")
-        action = request.POST.get("action")  # 'complete' or 'cancel'
-        if appt_id and action:
-            try:
-                appt = Appointment.objects.get(id=appt_id, doctor=doctor)
-                if action == "complete":
-                    appt.status = "Completed"
-                elif action == "cancel":
-                    appt.status = "Cancelled"
-                appt.save(update_fields=["status"])
-                messages.success(request, "Appointment status updated.")
-            except Appointment.DoesNotExist:
-                messages.error(request, "Appointment not found.")
-        return redirect("doctor_appointments")
-
-    return render(request, "booking/doctor_appointments.html", {"appts": appts})
-
-@login_required
-def doctor_patients(request):
-    """
-    Doctor: list unique patients who have appointments with this doctor.
-    """
-    try:
-        doctor = DoctorProfile.objects.get(user=request.user)
-    except DoctorProfile.DoesNotExist:
-        return redirect("patient_dashboard")
-
-    UserModel = get_user_model()
-
-    patient_ids = (
-        Appointment.objects.filter(doctor=doctor)
-        .values_list("patient_id", flat=True)
-        .distinct()
-    )
-
-    patients = UserModel.objects.filter(id__in=patient_ids).order_by(
-        "first_name", "last_name"
+    # --- SCHEDULE LIST (GET) ---
+    # Only appointments that are still to be done:
+    # Approved + Rescheduled; everything else excluded.
+    upcoming_appointments = (
+        Appointment.objects
+        .filter(
+            doctor=profile,
+            status__in=["Approved", "Rescheduled"],
+        )
+        .order_by("date", "time")  # oldest first
     )
 
     return render(
         request,
-        "booking/doctor_patients.html",
+        "booking/doctor_schedule.html",
         {
-            "patients": patients,
-            "active_menu": "patients",  # for left-menu highlight
+            "profile": profile,
+            "upcoming_appointments": upcoming_appointments,
         },
     )
 
@@ -843,31 +935,48 @@ def admin_patients(request):
         },
     )
 
+
+
 # ============================
 # ADMIN: APPOINTMENTS + CSV
 # ============================
 
+import csv
+
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import redirect, render
+from django.utils.dateparse import parse_date
+
+from .models import Appointment
+
+
 @login_required
 def admin_appointments(request):
     """
-    Admin: all appointments with search/filter.
-    Filters:
-      - q       : text search (patient, doctor, hospital, department)
-      - status  : Pending / Approved / etc.
-      - from,to : date range
+    Admin: view all appointments with filters.
+    Shows ALL appointments by default (no date limit).
     """
     if not request.user.is_staff:
         return redirect("home")
 
-    appts = Appointment.objects.select_related("patient", "doctor", "doctor__user")
+    # Correct relations: patient (User), doctor (DoctorProfile -> User)
+    qs = (
+        Appointment.objects
+        .select_related("patient", "doctor", "doctor__user")
+        .order_by("-date", "-time")
+    )
 
+    # --- Filters from GET ---
     q = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
-    date_from = request.GET.get("from", "").strip()
-    date_to = request.GET.get("to", "").strip()
+    start_date_raw = request.GET.get("start_date", "").strip()
+    end_date_raw = request.GET.get("end_date", "").strip()
 
+    # Text search across patient / doctor / hospital / department
     if q:
-        appts = appts.filter(
+        qs = qs.filter(
             Q(patient__first_name__icontains=q)
             | Q(patient__last_name__icontains=q)
             | Q(patient__username__icontains=q)
@@ -879,37 +988,32 @@ def admin_appointments(request):
             | Q(department__icontains=q)
         )
 
+    # Status filter
     if status:
-        appts = appts.filter(status=status)
+        qs = qs.filter(status=status)
 
-    if date_from:
-        df = parse_date(date_from)
-        if df:
-            appts = appts.filter(date__gte=df)
+    # Date range filters
+    start_date = parse_date(start_date_raw) if start_date_raw else None
+    end_date = parse_date(end_date_raw) if end_date_raw else None
 
-    if date_to:
-        dt = parse_date(date_to)
-        if dt:
-            appts = appts.filter(date__lte=dt)
+    if start_date:
+        qs = qs.filter(date__gte=start_date)
+    if end_date:
+        qs = qs.filter(date__lte=end_date)
 
-    appts = appts.order_by("-date", "-time")
-
-    return render(
-        request,
-        "booking/admin_appointments.html",
-        {
-            "appts": appts,
-            "q": q,
-            "status": status,
-            "date_from": date_from,
-            "date_to": date_to,
-            "section": "appointments",
-        },
-    )
+    context = {
+        "section": "appointments",
+        "appointments": qs,
+        "q": q,
+        "status_filter": status,
+        "start_date": start_date_raw,
+        "end_date": end_date_raw,
+    }
+    return render(request, "booking/admin_appointments.html", context)
 
 
 @login_required
-def admin_export_appointments_csv(request):
+def admin_appointments_export(request):
     """
     Export filtered appointments to CSV.
     Uses the same filters as admin_appointments.
@@ -917,12 +1021,18 @@ def admin_export_appointments_csv(request):
     if not request.user.is_staff:
         return redirect("home")
 
-    appts = Appointment.objects.select_related("patient", "doctor", "doctor__user")
+    appts = (
+        Appointment.objects
+        .select_related("patient", "doctor", "doctor__user")
+        .order_by("-date", "-time")
+    )
 
+    # Same query params as template:
+    # ?q=&status=&start_date=&end_date=
     q = request.GET.get("q", "").strip()
     status = request.GET.get("status", "").strip()
-    date_from = request.GET.get("from", "").strip()
-    date_to = request.GET.get("to", "").strip()
+    start_date_raw = request.GET.get("start_date", "").strip()
+    end_date_raw = request.GET.get("end_date", "").strip()
 
     if q:
         appts = appts.filter(
@@ -940,16 +1050,15 @@ def admin_export_appointments_csv(request):
     if status:
         appts = appts.filter(status=status)
 
-    if date_from:
-        df = parse_date(date_from)
-        if df:
-            appts = appts.filter(date__gte=df)
+    start_date = parse_date(start_date_raw) if start_date_raw else None
+    end_date = parse_date(end_date_raw) if end_date_raw else None
 
-    if date_to:
-        dt = parse_date(date_to)
-        if dt:
-            appts = appts.filter(date__lte=dt)
+    if start_date:
+        appts = appts.filter(date__gte=start_date)
+    if end_date:
+        appts = appts.filter(date__lte=end_date)
 
+    # --- Build CSV ---
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="dabs_appointments.csv"'
 
@@ -962,7 +1071,6 @@ def admin_export_appointments_csv(request):
             "Patient Email",
             "Doctor",
             "Specialization",
-            "Department",
             "Hospital",
             "Date",
             "Time",
@@ -970,22 +1078,32 @@ def admin_export_appointments_csv(request):
         ]
     )
 
-    for a in appts.order_by("-date", "-time"):
-        patient_name = a.patient.get_full_name() or a.patient.username
-        doctor_name = (
-            f"Dr. {a.doctor.user.get_full_name()}"
-            if a.doctor and a.doctor.user
-            else ""
-        )
+    for a in appts:
+        # Patient details
+        patient_user = a.patient
+        if patient_user:
+            patient_name = patient_user.get_full_name() or patient_user.username
+            patient_email = patient_user.email
+        else:
+            patient_name = ""
+            patient_email = ""
+
+        # Doctor details
+        doctor_user = a.doctor.user if a.doctor and a.doctor.user else None
+        if doctor_user:
+            base_name = doctor_user.get_full_name() or doctor_user.username
+            doctor_name = f"Dr. {base_name}"
+        else:
+            doctor_name = ""
+
         writer.writerow(
             [
                 a.id,
-                f"A-10{a.id}",
+                f"A-10{a.id}",  # Appointment code
                 patient_name,
-                a.patient.email,
+                patient_email,
                 doctor_name,
                 a.doctor.specialization if a.doctor else "",
-                a.department,
                 a.hospital,
                 a.date.isoformat() if a.date else "",
                 a.time.strftime("%H:%M") if a.time else "",
@@ -994,6 +1112,7 @@ def admin_export_appointments_csv(request):
         )
 
     return response
+
 
 
 # ============================
@@ -1161,30 +1280,45 @@ def admin_settings(request):
 # ---------------------------
 # Admin – System Logs
 # ---------------------------
-from django.core.paginator import Paginator
+
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.shortcuts import redirect, render
+
+from .models import SystemLog
+
 
 @login_required
 def admin_logs(request):
     """
-    Show SecurityLog entries (system activity log) to staff/admin users.
+    Admin: view system logs (user + appointment events).
+    Supports simple filters by event type and username.
     """
     if not request.user.is_staff:
         return redirect("home")
 
-    from .models import SecurityLog
+    logs = SystemLog.objects.select_related("user")
 
-    q = request.GET.get("q", "").strip()
+    event = request.GET.get("event", "").strip()
+    user_q = request.GET.get("user", "").strip()
 
-    logs = SecurityLog.objects.all().order_by("-timestamp")
-    if q:
-        logs = logs.filter(user__icontains=q)
+    if event:
+        logs = logs.filter(event_type=event)
 
-    return render(
-        request,
-        "booking/admin_logs.html",
-        {
-            "section": "logs",
-            "logs": logs,
-            "q": q,
-        },
-    )
+    if user_q:
+        logs = logs.filter(
+            Q(user__username__icontains=user_q)
+            | Q(user__first_name__icontains=user_q)
+            | Q(user__last_name__icontains=user_q)
+        )
+
+    # limit to last 300 to avoid huge tables
+    logs = logs[:300]
+
+    context = {
+        "section": "logs",
+        "logs": logs,
+        "event": event,
+        "user_q": user_q,
+    }
+    return render(request, "booking/admin_logs.html", context)
