@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.contrib.auth.models import User
-from django.db import models
+from django.conf import settings
+
+
 
 class DoctorProfile(models.Model):
     STATUS_CHOICES = [
@@ -18,6 +19,7 @@ class DoctorProfile(models.Model):
     specialization = models.CharField(max_length=80)
     experience_years = models.PositiveIntegerField(default=0)
     hospital = models.CharField(max_length=120)
+    hospital_slug = models.CharField(max_length=120)
     city = models.CharField(max_length=80)
     slot_preference = models.CharField(max_length=120)
 
@@ -97,7 +99,7 @@ class Appointment(models.Model):
     def __str__(self) -> str:
         return f"{self.patient.username} → Dr. {self.doctor.user.last_name} ({self.status})"
 
-from django.conf import settings
+
 
 class SecurityLog(models.Model):
     user = models.ForeignKey(
@@ -112,9 +114,6 @@ class SecurityLog(models.Model):
     def str(self):
         return f"{self.timestamp} - {self.user} - {self.action}"
 
-# --- System-wide admin settings (single row) --------------------
-from django.db import models
-from django.contrib.auth.models import User
 
 
 class SystemSetting(models.Model):
@@ -176,14 +175,6 @@ class SystemLog(models.Model):
     def __str__(self) -> str:
         username = self.user.username if self.user else "system"
         return f"[{self.created_at:%Y-%m-%d %H:%M}] {self.event_type} ({username})"
-
-from django.conf import settings
-from django.db import models
-
-# ... your existing models (DoctorProfile, Appointment, SystemSetting, etc.) ...
-
-from django.conf import settings
-from django.db import models
 
 
 class Notification(models.Model):

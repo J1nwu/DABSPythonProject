@@ -15,8 +15,17 @@
     --dabs-card-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
+/* STICKY FOOTER ENABLED */
+html, body {
+    height: 100%;
+}
+
+
 body {
     background-color: var(--dabs-bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
 /* Optional: if your base templates wrap content in this container */
@@ -53,6 +62,7 @@ body {
 
 .dabs-dashboard-layout {
     display: flex;
+    align-items: flex-start;
     gap: 1.25rem;
 }
 
@@ -65,13 +75,14 @@ body {
     border-radius: 10px;
     border: 1px solid var(--dabs-border);
     box-shadow: var(--dabs-card-shadow);
-    overflow: hidden;
+    overflow-y: auto;
+    align-self: flex-start !important; 
 }
 
 /* For pages where sidebar is inside Bootstrap grid, make sure it stays left */
 @media (max-width: 767.98px) {
     .dabs-dashboard-layout {
-        flex-direction: column;
+        display: flex;
     }
 
     .dashboard-sidebar {
@@ -110,6 +121,7 @@ body {
 
 .dashboard-main {
     flex: 1;
+    min-width: 55em;
 }
 
 /* Generic headings across all dashboards */

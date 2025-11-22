@@ -1,0 +1,98 @@
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# ===========================
+# Django Specific
+# ===========================
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+db.sqlite3
+
+# Django local settings
+/local_settings.py
+/settings_local.py
+
+# Media & Static
+/media/
+/staticfiles/
+/static/
+
+# Migrations (optional — keep __init__.py)
+**/migrations/*.py
+!**/migrations/__init__.py
+
+# ===========================
+# Environment & Secrets
+# ===========================
+.env
+.env.*
+*.env
+*.secret
+secrets.json
+
+# ===========================
+# Virtual Environment
+# ===========================
+venv/
+env/
+ENV/
+.venv/
+.python-version
+
+# ===========================
+# IDEs
+# ===========================
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+*.iml
+
+# ===========================
+# Byte-compiled / cache
+# ===========================
+*.pickle
+*.cache
+*.mo
+
+# ===========================
+# OS Files
+# ===========================
+.DS_Store
+Thumbs.db
+
+# ===========================
+# Testing & Results
+# ===========================
+.coverage
+coverage.xml
+pytest.xml
+htmlcov/
+junit.xml
+
+# ===========================
+# Build / Packaging
+# ===========================
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===========================
+# Node (if using Django + React/Vue)
+# ===========================
+node_modules/
+npm-debug.log*
+yarn-error.log*

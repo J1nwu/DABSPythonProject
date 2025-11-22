@@ -68,6 +68,10 @@
    class="list-group-item {% if request.path == '/dashboard/doctor/profile/' %}active{% endif %}">
   Profile
 </a>
+<a href="{% url 'feedback_list' %}"
+   class="list-group-item {% if request.path == '/dashboard/doctor/feedback/' %}active{% endif %}">
+  MyFeedBack
+</a>
     </div>
 
     <!-- Main content -->

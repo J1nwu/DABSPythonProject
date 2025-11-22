@@ -1,0 +1,62 @@
+{% extends "booking/doctor_base.html" %}
+
+{% block title %}Patient FeedBack {% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">FeedBack</h3>
+
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+  <thead class="table-light">
+    <tr>
+      <th>ID</th>
+      {% if user.admin %}
+        <th>Doctor</th>
+      {% endif %}
+      <th>Patient</th>
+      <th>Rating</th>
+      <th>Feedback</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for fb in feedback_list %}
+      <tr>
+        <td>{{ fb.id }}</td>
+
+        {% if user.admin %}
+          <td>{{ fb.doctor.get_full_name|default:fb.doctor.username }}</td>
+        {% endif %}
+
+        <td>{{ fb.patient.get_full_name|default:fb.patient.username }}</td>
+
+        <!-- Rating stars or number -->
+        <td>
+          {% for i in "12345"|make_list %}
+    {% if forloop.counter <= fb.rating %}
+        ⭐
+    {% else %}
+        ☆
+    {% endif %}
+{% endfor %}
+          <span class="text-muted small">({{ fb.rating }}/5)</span>
+        </td>
+        <!-- Feedback message -->
+        <td>{{ fb.comments|default:"—" }}</td>
+
+        <!-- Feedback date -->
+        <td>{{ fb.created_at|date:"d M Y, h:i A" }}</td>
+      </tr>
+
+    {% empty %}
+      <tr>
+        <td colspan="{% if user.admin %}6{% else %}5{% endif %}" class="text-muted">
+          No feedback found.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

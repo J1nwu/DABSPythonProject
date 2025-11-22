@@ -8,9 +8,10 @@ from django.db.models import Q, Count
 from django.http import Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
-
-from .models import DoctorProfile, Appointment, SystemSetting
-
+from .utils import clean_slug
+from django.utils.text import slugify
+from .models import DoctorProfile, Appointment, SystemSetting,Feedback
+from django.http import JsonResponse
 from datetime import date, datetime
 from .utils import log_event
 from django.contrib import messages
@@ -122,6 +123,59 @@ def give_feedback(request, appt_id):
         "booking/give_feedback.html",
         {"appointment": appt},
     )
+
+@login_required
+def get_feedback_list(request):
+    # Check if user is doctor or superuser
+    docter_instance = DoctorProfile.objects.filter(user = request.user)
+    if not docter_instance:
+        return redirect('patient_dashboard')
+
+    if request.user.is_superuser:
+        feedback_context = Feedback.objects.all()
+    else:
+        feedback_context = Feedback.objects.filter(doctor = docter_instance[0])
+
+    return render(
+        request,
+        "booking/feedback_list.html",
+        {"feedback_list": feedback_context},
+    )
+
+@login_required
+def get_all_departments(request,hospital_slug:str):
+    departments = (
+        DoctorProfile.objects
+        .filter(hospital_slug=hospital_slug)
+        .values_list("specialization", flat=True)
+        .distinct()
+        .order_by("specialization")
+    )
+
+    # generate slugs for departments
+    data = [
+        {"name": d, "slug": slugify(d)}
+        for d in departments
+    ]
+
+    return JsonResponse({"departments": data})
+
+def get_all_doctor(request,hospital_slug,department_slug):
+    doctors = (
+        DoctorProfile.objects
+        .filter(
+            hospital_slug=hospital_slug,
+            specialization__iexact=department_slug.replace("-", " ")
+        )
+        .select_related("user")
+    )
+
+    data = [
+        {"id": d.id, "name": d.user.get_full_name() or d.user.username}
+        for d in doctors
+    ]
+
+    return JsonResponse({"doctors": data})
 
 def send_appointment_email(appt, subject, message):
     """
@@ -431,6 +485,7 @@ def doctor_register(request):
             specialization=spec,
             experience_years=int(exp) if exp.isdigit() else 0,
             hospital=hospital,
+            hospital_slug = clean_slug(hospital),
             city=city,
             slot_preference=slot,
             fee=fee_value,
@@ -475,7 +530,18 @@ from datetime import date, datetime
 from django.utils import timezone
 
 @login_required
-def book_appointment(request, doctor_id):
+def book_appointment(request, doctor_id=None):
+    if not doctor_id and request.method != "POST":
+        doctors = DoctorProfile.objects.all()
+        return render(
+        request,
+        "booking/book_appointment_2.html",
+        {"today": date.today(),"doctors":doctors},
+    )
+
+    post_doctor_id = request.POST.get("doctor", "").strip()
+    if post_doctor_id:
+        doctor_id = post_doctor_id
     doctor = get_object_or_404(DoctorProfile, id=doctor_id, status="Active")
 
     if request.method == "POST":

@@ -1,7 +1,8 @@
 from typing import Optional
 
 from django.http import HttpRequest
-
+import re
+from django.utils.text import slugify
 from .models import SystemLog
 from django.contrib.auth.models import User
 
@@ -39,3 +40,10 @@ def log_event(
         ip_address=ip_address,
         user_agent=user_agent,
     )
+
+
+
+def clean_slug(text):
+    text = slugify(text)          # applo-hospital
+    text = re.sub(r'[-_]+', '', text)   # remove hyphens/underscores → applohospital
+    return text

@@ -51,8 +51,8 @@
       </a>
 
       {# "Book Appointment" just redirects to Find Doctor; booking is doctor-specific #}
-      <a href="{% url 'find_doctor' %}"
-         class="list-group-item {% if request.path == '/dashboard/patient/book/' %}active{% endif %}">
+      <a href="{% url 'book_appointment_doctor' %}"
+         class="list-group-item {% if request.path == '/dashboard/patient/bookAppointment/' %}active{% endif %}">
         Book Appointment
       </a>
 

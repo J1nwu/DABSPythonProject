@@ -1,0 +1,137 @@
+{% extends "booking/patient_base.html" %}
+
+{% block title %}Book Appointment – DABS{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-4">
+  Book Appointment
+</h3>
+
+{% if messages %}
+{% for m in messages %}
+<div class="alert alert-{{ m.tags }}">{{ m }}</div>
+{% endfor %}
+{% endif %}
+
+<form method="post" class="card p-4 shadow-sm" id="appointmentForm">
+  {% csrf_token %}
+
+  <!-- Hospital -->
+  <div class="mb-3">
+    <label class="form-label">Hospital *</label>
+    <select id="hospitalSelect" name="hospital" class="form-control" required>
+      <option value="">Select Hospital</option>
+      {% for h in doctors %}
+      <option value="{{ h.hospital_slug }}">{{ h.hospital }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <!-- Department -->
+  <div class="mb-3">
+    <label class="form-label">Department *</label>
+    <select id="departmentSelect" name="department" class="form-control" required>
+      <option value="">Select Department</option>
+    </select>
+  </div>
+
+  <!-- Doctor -->
+  <div class="mb-3">
+    <label class="form-label">Doctor *</label>
+    <select id="doctorSelect" name="doctor" class="form-control" required>
+      <option value="">Select Doctor</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Date *</label>
+      <input type="date" name="date" class="form-control" min="{{ today }}" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label class="form-label">Time *</label>
+      <input type="time" name="time" class="form-control" required>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Symptoms / Reason (optional)</label>
+    <textarea name="symptoms" class="form-control" rows="3"></textarea>
+  </div>
+
+  <div class="d-flex justify-content-between">
+    <a href="{% url 'find_doctor' %}" class="btn btn-outline-secondary">
+      Back
+    </a>
+    <button class="btn btn-primary btn-lg" type="submit">
+      Confirm Booking
+    </button>
+  </div>
+</form>
+<script>
+  // When hospital changes → load departments
+  document.getElementById("hospitalSelect").addEventListener("change", function () {
+    const hospitalSlug = this.value;
+
+    // Reset dropdowns first
+    const deptSelect = document.getElementById("departmentSelect");
+    const doctorSelect = document.getElementById("doctorSelect");
+
+    deptSelect.innerHTML = '<option value="">Select Department</option>';
+    doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+
+    if (!hospitalSlug) return; // nothing selected
+
+    fetch(`/hospital/${hospitalSlug}/departments/`)
+      .then(response => response.json())
+      .then(data => {
+
+        if (!data.departments || data.departments.length === 0) {
+          deptSelect.innerHTML = '<option value="">No departments found</option>';
+          return;
+        }
+
+        data.departments.forEach(dep => {
+          const properName =
+            dep.name.charAt(0).toUpperCase() + dep.name.slice(1).toLowerCase();
+          deptSelect.insertAdjacentHTML(
+            "beforeend",
+            `<option value="${dep.slug}">${properName}</option>`
+          );
+        });
+      })
+      .catch(err => console.error("Department Load Error:", err));
+  });
+
+  // When department changes → load doctors
+  document.getElementById("departmentSelect").addEventListener("change", function () {
+    const departmentSlug = this.value;
+    const hospitalSlug = document.getElementById("hospitalSelect").value;
+
+    const doctorSelect = document.getElementById("doctorSelect");
+    doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+
+    if (!hospitalSlug || !departmentSlug) return;
+
+    fetch(`/hospital/${hospitalSlug}/${departmentSlug}/doctors/`)
+      .then(response => response.json())
+      .then(data => {
+
+        if (!data.doctors || data.doctors.length === 0) {
+          doctorSelect.innerHTML = '<option value="">No doctors found</option>';
+          return;
+        }
+
+        data.doctors.forEach(doc => {
+          doctorSelect.insertAdjacentHTML(
+            "beforeend",
+            `<option value="${doc.id}">${doc.name}</option>`
+          );
+        });
+      })
+      .catch(err => console.error("Doctor Load Error:", err));
+  });
+</script>
+
+
+{% endblock %}

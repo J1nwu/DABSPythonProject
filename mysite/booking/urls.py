@@ -18,6 +18,7 @@ urlpatterns = [
     # Patient area
     path('dashboard/patient/', views.patient_dashboard, name='patient_dashboard'),
     path('dashboard/patient/find/', views.find_doctor, name='find_doctor'),
+    path('dashboard/patient/bookAppointment/', views.book_appointment, name='book_appointment_doctor'),
     path('dashboard/patient/book/<int:doctor_id>/', views.book_appointment, name='book_appointment'),
     path('dashboard/patient/appointments/', views.my_appointments, name='my_appointments'),
     path('dashboard/patient/appointments/<int:appt_id>/cancel/', views.cancel_appointment, name='cancel_appointment'),
@@ -25,6 +26,8 @@ urlpatterns = [
     path('dashboard/patient/profile/', views.patient_profile, name='patient_profile'),
     path('dashboard/patient/notifications/', views.patient_notifications, name='patient_notifications'),
     path( "dashboard/patient/appointments/<int:appt_id>/feedback/",views.give_feedback,name="give_feedback",),
+    path("hospital/<str:hospital_slug>/departments/",views.get_all_departments, name='patient_notifications'),
+    path("hospital/<str:hospital_slug>/<str:department_slug>/doctors/",views.get_all_doctor, name='patient_notifications'),    
 
     # Doctor area
     path('dashboard/doctor/', views.doctor_dashboard, name='doctor_dashboard'),
@@ -36,6 +39,7 @@ urlpatterns = [
     path('dashboard/doctor/appointments/', views.doctor_appointments, name='doctor_appointments'),
     path('dashboard/doctor/patients/', views.doctor_patients, name='doctor_patients'),
     path('dashboard/doctor/profile/', views.doctor_profile, name='doctor_profile'),
+    path("dashboard/doctor/feedback/",views.get_feedback_list,name="feedback_list",),
     path('dashboard/doctor/appointments/<int:appt_id>/complete/', views.doctor_mark_completed, name='doctor_mark_completed'),
 
     # --------- CUSTOM ADMIN UI (NOT Django /admin) ----------
