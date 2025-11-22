@@ -64,10 +64,10 @@
         My Schedule
       </a>
 
-      <a href="#"
-         class="list-group-item {% if request.path == '/dashboard/doctor/profile/' %}active{% endif %}">
-        Profile (coming soon)
-      </a>
+     <a href="{% url 'doctor_profile' %}"
+   class="list-group-item {% if request.path == '/dashboard/doctor/profile/' %}active{% endif %}">
+  Profile
+</a>
     </div>
 
     <!-- Main content -->

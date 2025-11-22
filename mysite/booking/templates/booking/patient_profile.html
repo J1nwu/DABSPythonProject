@@ -1,0 +1,60 @@
+{% extends "booking/patient_base.html" %}
+
+{% block title %}My Profile – DABS{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">My Profile</h3>
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert alert-{{ m.tags }} mb-3">{{ m }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    <form method="post" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-md-6">
+        <label class="form-label">First Name</label>
+        <input type="text" name="first_name"
+               class="form-control"
+               value="{{ user_obj.first_name }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Last Name</label>
+        <input type="text" name="last_name"
+               class="form-control"
+               value="{{ user_obj.last_name }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Email (used as login)</label>
+        <input type="email" name="email"
+               class="form-control"
+               required
+               value="{{ user_obj.email }}">
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-control" value="{{ user_obj.username }}" disabled>
+        <div class="form-text">
+          Username is kept same as your email for login.
+        </div>
+      </div>
+
+      <div class="col-12">
+        <button type="submit" class="btn btn-primary">
+          Save Changes
+        </button>
+        <a href="{% url 'patient_dashboard' %}" class="btn btn-outline-secondary ms-2">
+          Back to Dashboard
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -15,14 +15,13 @@
   View upcoming visits, history and notifications.
 </p>
 
-<!-- Top stat cards -->
 <div class="row g-3 mb-4">
   <div class="col-md-4">
     <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
         <div class="text-uppercase text-muted small">Upcoming</div>
-        <div class="fs-3 fw-bold">0</div>
-        <div class="text-muted small">Your next appointment will appear here.</div>
+        <div class="fs-3 fw-bold">{{ upcoming_count|default:0 }}</div>
+        <div class="text-muted small">Appointments scheduled from today onwards.</div>
       </div>
     </div>
   </div>
@@ -31,8 +30,14 @@
     <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
         <div class="text-uppercase text-muted small">Last Visit</div>
-        <div class="fs-3 fw-bold">—</div>
-        <div class="text-muted small">Recent history snapshot.</div>
+        <div class="fs-3 fw-bold">
+          {% if last_visit %}
+            {{ last_visit.date }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="text-muted small">Most recent completed appointment.</div>
       </div>
     </div>
   </div>
@@ -41,14 +46,13 @@
     <div class="card stat-card shadow-sm border-0">
       <div class="card-body">
         <div class="text-uppercase text-muted small">Notifications</div>
-        <div class="fs-3 fw-bold">0</div>
-        <div class="text-muted small">New updates after booking or changes.</div>
+        <div class="fs-3 fw-bold">{{ notifications_count|default:0 }}</div>
+        <div class="text-muted small">Pending / rescheduled appointments.</div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Main summary card -->
 <div class="card shadow-sm border-0">
   <div class="card-body">
     <h5 class="fw-bold mb-2">Quick Summary</h5>

@@ -4,7 +4,6 @@
 
 {% block content %}
 <h3 class="fw-bold mb-3">My Schedule</h3>
-
 <p class="text-muted">
   This section shows your upcoming appointments. You can use it as a quick daily / weekly schedule.
 </p>
@@ -17,6 +16,7 @@
         <th>Time</th>
         <th>Patient</th>
         <th>Status</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -26,10 +26,24 @@
         <td>{{ appt.time }}</td>
         <td>{{ appt.patient.get_full_name|default:appt.patient.username }}</td>
         <td>{{ appt.status }}</td>
+        <td>
+          {% if appt.status == "Approved" or appt.status == "Rescheduled" %}
+            <form method="post"
+                  action="{% url 'doctor_mark_completed' appt.id %}"
+                  onsubmit="return confirm('Mark this appointment as completed?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-success">
+                Mark Completed
+              </button>
+            </form>
+          {% else %}
+            —
+          {% endif %}
+        </td>
       </tr>
     {% empty %}
       <tr>
-        <td colspan="4" class="text-muted">No upcoming appointments in your schedule.</td>
+        <td colspan="5" class="text-muted">No upcoming appointments in your schedule.</td>
       </tr>
     {% endfor %}
     </tbody>

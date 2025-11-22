@@ -1,5 +1,6 @@
 from datetime import datetime
-
+from django.core.mail import send_mail
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -29,6 +30,119 @@ from django.shortcuts import (
     redirect,
     render,
 )
+
+from django.conf import settings
+from django.core.mail import send_mail
+from .models import Notification  # make sure Notification is imported
+
+
+def notify_user(user, message: str, *, link: str = "", send_email: bool = True):
+    """
+    Create an in-app notification and optionally send an email.
+    """
+    if not user:
+        return
+
+    # Save notification in DB
+    Notification.objects.create(
+        user=user,
+        message=message,
+        link=link or "",
+    )
+
+    # Optional email
+    if send_email and user.email:
+        try:
+            send_mail(
+                subject="DABS Notification",
+                message=message,
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER),
+                recipient_list=[user.email],
+                fail_silently=True,  # do NOT crash the site if email fails
+            )
+        except Exception:
+            # In production you would log this; for project report it's fine to ignore.
+            pass
+
+from .models import Feedback  # add import
+
+@login_required
+def give_feedback(request, appt_id):
+    """
+    Patient gives feedback for a COMPLETED appointment.
+    """
+    appt = get_object_or_404(
+        Appointment,
+        id=appt_id,
+        patient=request.user,
+    )
+
+    if appt.status != "Completed":
+        messages.error(request, "You can give feedback only for completed appointments.")
+        return redirect("my_appointments")
+
+    # prevent double feedback
+    if hasattr(appt, "feedback"):
+        messages.info(request, "You have already submitted feedback for this appointment.")
+        return redirect("my_appointments")
+
+    if request.method == "POST":
+        rating_str = request.POST.get("rating", "5").strip()
+        comments = request.POST.get("comments", "").strip()
+        try:
+            rating = int(rating_str)
+        except ValueError:
+            rating = 5
+        if rating < 1:
+            rating = 1
+        if rating > 5:
+            rating = 5
+
+        Feedback.objects.create(
+            appointment=appt,
+            patient=request.user,
+            doctor=appt.doctor,
+            rating=rating,
+            comments=comments,
+        )
+
+        # Optional: notify doctor
+        notify_user(
+            appt.doctor.user,
+            message=f"New feedback received from {request.user.get_full_name() or request.user.username} "
+                    f"for appointment on {appt.date}.",
+            link="/dashboard/doctor/patients/",
+        )
+
+        messages.success(request, "Thank you for your feedback.")
+        return redirect("my_appointments")
+
+    return render(
+        request,
+        "booking/give_feedback.html",
+        {"appointment": appt},
+    )
+
+def send_appointment_email(appt, subject, message):
+    """
+    Send a simple email notification to the patient about an appointment.
+    Uses DEFAULT_FROM_EMAIL from settings.
+    """
+    patient_email = getattr(appt.patient, "email", None)
+    if not patient_email:
+        return  # no email, nothing to send
+
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [patient_email],
+            fail_silently=True,  # avoid crashing the view if SMTP has an issue
+        )
+    except Exception:
+        # In production you might want to log this
+        pass
 
 from .models import DoctorProfile, Appointment, SystemSetting
 from .models import SecurityLog
@@ -157,10 +271,95 @@ def patient_register(request):
     return render(request, "booking/patient_register.html")
 
 
+from django.utils import timezone
+
 @login_required
 def patient_dashboard(request):
-    return render(request, "booking/patient_dashboard.html")
+    today = timezone.localdate()
 
+    upcoming_qs = Appointment.objects.filter(
+        patient=request.user,
+        date__gte=today,
+    ).exclude(status__in=["Cancelled", "Completed", "Rejected"])
+    upcoming_count = upcoming_qs.count()
+
+    last_visit = Appointment.objects.filter(
+        patient=request.user,
+        status="Completed",
+    ).order_by("-date", "-time").first()
+
+    notifications_count = Notification.objects.filter(
+        user=request.user,
+        is_read=False,
+    ).count()
+
+    context = {
+        "upcoming_count": upcoming_count,
+        "last_visit": last_visit,
+        "notifications_count": notifications_count,
+    }
+    return render(request, "booking/patient_dashboard.html", context)
+
+@login_required
+def patient_profile(request):
+    """
+    View / edit basic patient profile (uses Django's User model).
+    """
+    user = request.user
+
+    if request.method == "POST":
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip().lower()
+
+        if not email:
+            messages.error(request, "Email is required.")
+            return redirect("patient_profile")
+
+        UserModel = get_user_model()
+        # Check if some other user already uses this email/username
+        if (
+            UserModel.objects.filter(username=email)
+            .exclude(pk=user.pk)
+            .exists()
+        ):
+            messages.error(
+                request,
+                "This email is already used by another account.",
+            )
+            return redirect("patient_profile")
+
+        # Update fields
+        user.first_name = first_name
+        user.last_name = last_name
+        user.email = email
+        user.username = email  # keep username == email (same policy as registration)
+        user.save(update_fields=["first_name", "last_name", "email", "username"])
+
+        messages.success(request, "Profile updated successfully.")
+        return redirect("patient_profile")
+
+    # GET – show form with current data
+    context = {
+        "user_obj": user,
+    }
+    return render(request, "booking/patient_profile.html", context)
+
+@login_required
+def patient_notifications(request):
+    """
+    List notifications for logged-in patient. Marks them as read when opened.
+    """
+    qs = Notification.objects.filter(user=request.user).order_by("-created_at")
+
+    # Mark all as read once page is opened
+    qs.filter(is_read=False).update(is_read=True)
+
+    return render(
+        request,
+        "booking/patient_notifications.html",
+        {"notifications": qs},
+    )
 
 # ============================
 # DOCTOR REGISTRATION / DASHBOARD
@@ -272,6 +471,9 @@ def find_doctor(request):
     )
 
 
+from datetime import date, datetime
+from django.utils import timezone
+
 @login_required
 def book_appointment(request, doctor_id):
     doctor = get_object_or_404(DoctorProfile, id=doctor_id, status="Active")
@@ -283,7 +485,7 @@ def book_appointment(request, doctor_id):
         appt_time = request.POST.get("time", "").strip()
         symptoms = request.POST.get("symptoms", "").strip()
 
-        Appointment.objects.create(
+        appt = Appointment.objects.create(
             patient=request.user,
             doctor=doctor,
             department=department,
@@ -292,6 +494,23 @@ def book_appointment(request, doctor_id):
             time=appt_time,
             symptoms=symptoms,
             status="Pending",
+        )
+
+        # Notifications:
+        # to patient
+        notify_user(
+            request.user,
+            message=f"Your appointment request with Dr. {doctor.user.get_full_name() or doctor.user.username} "
+                    f"on {appt.date} at {appt.time} has been submitted (status: Pending).",
+            link="/dashboard/patient/appointments/",
+        )
+
+        # to doctor
+        notify_user(
+            doctor.user,
+            message=f"New appointment request from {request.user.get_full_name() or request.user.username} "
+                    f"on {appt.date} at {appt.time}.",
+            link="/dashboard/doctor/approvals/",
         )
 
         messages.success(request, "Appointment booked successfully!")
@@ -303,19 +522,13 @@ def book_appointment(request, doctor_id):
         {"doctor": doctor, "today": date.today()},
     )
 
-
 @login_required
 def my_appointments(request):
     appts = Appointment.objects.filter(patient=request.user).order_by("-date", "-time")
     return render(request, "booking/my_appointments.html", {"appts": appts})
 
-
 @login_required
 def cancel_appointment(request, appt_id):
-    """
-    Patient cancels own appointment (POST only).
-    Block cancelling Completed/Cancelled; optionally past datetime.
-    """
     if request.method != "POST":
         return HttpResponseForbidden("POST required")
 
@@ -325,7 +538,7 @@ def cancel_appointment(request, appt_id):
         messages.error(request, "This appointment cannot be cancelled.")
         return redirect("my_appointments")
 
-    # Optional: block cancelling past datetime if both date and time exist
+    # Optional: block cancelling past datetime (already in your code)
     try:
         if appt.date and appt.time:
             appt_dt = datetime.combine(appt.date, appt.time)
@@ -342,9 +555,17 @@ def cancel_appointment(request, appt_id):
 
     appt.status = "Cancelled"
     appt.save(update_fields=["status"])
+
+    # Notify doctor
+    notify_user(
+        appt.doctor.user,
+        message=f"Appointment with patient {request.user.get_full_name() or request.user.username} "
+                f"on {appt.date} at {appt.time} has been CANCELLED by the patient.",
+        link="/dashboard/doctor/appointments/",
+    )
+
     messages.success(request, "Appointment cancelled.")
     return redirect("my_appointments")
-
 
 @login_required
 def reschedule_appointment(request, appt_id):
@@ -449,12 +670,8 @@ def doctor_approvals(request):
         {"pending_appointments": pending_appointments},
     )
 
-
 @login_required
 def doctor_approve(request, appt_id):
-    """
-    Approve a pending appointment.
-    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -462,15 +679,21 @@ def doctor_approve(request, appt_id):
 
     appt.status = "Approved"
     appt.save(update_fields=["status"])
-    messages.success(request, "Appointment approved.")
+
+    # Notify patient
+    notify_user(
+        appt.patient,
+        message=f"Your appointment with Dr. {appt.doctor.user.get_full_name() or appt.doctor.user.username} "
+                f"on {appt.date} at {appt.time} has been APPROVED.",
+        link="/dashboard/patient/appointments/",
+    )
+
+    messages.success(request, "Appointment Approved.")
     return redirect("doctor_approvals")
 
 
 @login_required
 def doctor_reject(request, appt_id):
-    """
-    Reject a pending appointment.
-    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -478,15 +701,20 @@ def doctor_reject(request, appt_id):
 
     appt.status = "Rejected"
     appt.save(update_fields=["status"])
-    messages.success(request, "Appointment rejected.")
+
+    notify_user(
+        appt.patient,
+        message=f"Your appointment with Dr. {appt.doctor.user.get_full_name() or appt.doctor.user.username} "
+                f"on {appt.date} at {appt.time} has been REJECTED.",
+        link="/dashboard/patient/appointments/",
+    )
+
+    messages.success(request, "Appointment Rejected.")
     return redirect("doctor_approvals")
 
 
 @login_required
 def doctor_reschedule(request, appt_id):
-    """
-    Reschedule an appointment (doctor side).
-    """
     try:
         appt = Appointment.objects.get(id=appt_id, doctor__user=request.user)
     except Appointment.DoesNotExist:
@@ -495,7 +723,6 @@ def doctor_reschedule(request, appt_id):
     if request.method == "GET":
         return render(request, "booking/doctor_reschedule.html", {"appt": appt})
 
-    # POST
     new_date = request.POST.get("date", "").strip()
     new_time = request.POST.get("time", "").strip()
 
@@ -515,12 +742,15 @@ def doctor_reschedule(request, appt_id):
     appt.status = "Rescheduled"
     appt.save(update_fields=["date", "time", "status"])
 
-    messages.success(request, "Appointment rescheduled.")
+    notify_user(
+        appt.patient,
+        message=f"Your appointment with Dr. {appt.doctor.user.get_full_name() or appt.doctor.user.username} "
+                f"has been RESCHEDULED to {appt.date} at {appt.time}.",
+        link="/dashboard/patient/appointments/",
+    )
+
+    messages.success(request, "Appointment Rescheduled.")
     return redirect("doctor_approvals")
-
-
-from django.db.models import Q
-from django.contrib.auth.decorators import login_required
 
 @login_required
 def doctor_appointments(request):
@@ -688,6 +918,114 @@ def doctor_schedule(request):
         },
     )
 
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.shortcuts import render, redirect, get_object_or_404
+# make sure DoctorProfile is already imported at top of file
+
+@login_required
+def doctor_profile(request):
+    """
+    Show and edit the logged-in doctor's profile.
+    """
+    profile = get_object_or_404(DoctorProfile, user=request.user)
+    user = request.user
+
+    if request.method == "POST":
+        # --- Basic user fields ---
+        user.first_name = request.POST.get("first_name", "").strip()
+        user.last_name = request.POST.get("last_name", "").strip()
+        user.email = request.POST.get("email", "").strip()
+        user.save()
+
+        # --- DoctorProfile fields (use default filters so it doesn't break if some are empty) ---
+        profile.specialization = request.POST.get("specialization", "").strip() or profile.specialization
+        profile.hospital = request.POST.get("hospital", "").strip() or profile.hospital
+        profile.city = request.POST.get("city", "").strip() or profile.city
+        profile.phone = request.POST.get("phone", "").strip() or getattr(profile, "phone", "")
+        profile.registration_no = request.POST.get("registration_no", "").strip() or getattr(profile, "registration_no", "")
+        profile.bio = request.POST.get("bio", "").strip() or getattr(profile, "bio", "")
+
+        fee_raw = request.POST.get("fee", "").strip()
+        if fee_raw:
+            try:
+                profile.fee = int(fee_raw)
+            except ValueError:
+                messages.warning(request, "Invalid fee value. Fee not updated.")
+
+        profile.save()
+        messages.success(request, "Profile updated successfully.")
+        return redirect("doctor_profile")
+
+    context = {
+        "profile": profile,
+        "user_obj": user,
+    }
+    return render(request, "booking/doctor_profile.html", context)
+
+from django.http import HttpResponseForbidden
+from django.core.mail import send_mail
+from django.conf import settings
+from .models import Appointment, DoctorProfile, Notification  # adjust import if needed
+from django.utils import timezone
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
+
+@login_required
+def doctor_mark_completed(request, appt_id):
+    """
+    Doctor marks an appointment as COMPLETED.
+    Only allowed for this doctor and only if status is Approved / Rescheduled.
+    """
+    if request.method != "POST":
+        return HttpResponseForbidden("POST required")
+
+    doctor_profile = get_object_or_404(DoctorProfile, user=request.user)
+    appt = get_object_or_404(Appointment, id=appt_id, doctor=doctor_profile)
+
+    if appt.status not in ["Approved", "Rescheduled"]:
+        messages.error(
+            request,
+            "Only approved or rescheduled appointments can be marked as completed.",
+        )
+        return redirect("doctor_schedule")
+
+    appt.status = "Completed"
+    appt.save(update_fields=["status"])
+
+    # Create notification for patient
+    Notification.objects.create(
+        user=appt.patient,
+        message=(
+            f"Your appointment with Dr. {appt.doctor.user.first_name} "
+            f"{appt.doctor.user.last_name} on {appt.date} at {appt.time} "
+            f"has been marked as COMPLETED."
+        ),
+        link="/dashboard/patient/appointments/",
+    )
+
+    # Email to patient (same pattern as your other mails)
+    try:
+        if appt.patient.email:
+            send_mail(
+                subject="DABS – Appointment completed",
+                message=(
+                    f"Dear {appt.patient.get_full_name() or appt.patient.username},\n\n"
+                    f"Your appointment with Dr. {appt.doctor.user.first_name} "
+                    f"{appt.doctor.user.last_name} on {appt.date} at {appt.time} "
+                    f"has been marked as COMPLETED in the system.\n\n"
+                    f"You can now log in to DABS to review details or give feedback."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[appt.patient.email],
+                fail_silently=True,
+            )
+    except Exception:
+        # We don't crash the page if email fails
+        pass
+
+    messages.success(request, "Appointment marked as completed.")
+    return redirect("doctor_schedule")
 
 # ============================
 # ADMIN: DASHBOARD + DOCTOR APPLICATIONS

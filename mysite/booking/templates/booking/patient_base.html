@@ -25,7 +25,7 @@
     </span>
 
     <span class="navbar-text ms-auto me-3">
-      Welcome,
+      Patient:
       {{ request.user.get_full_name|default:request.user.username }}
     </span>
 
@@ -40,26 +40,35 @@
 
     <!-- Sidebar -->
     <div class="dashboard-sidebar list-group">
-      <a href="/dashboard/patient/"
+      <a href="{% url 'patient_dashboard' %}"
          class="list-group-item {% if request.path == '/dashboard/patient/' %}active{% endif %}">
         Dashboard
       </a>
-      <a href="/dashboard/patient/find-doctor/"
-         class="list-group-item {% if request.path == '/dashboard/patient/find-doctor/' %}active{% endif %}">
+
+      <a href="{% url 'find_doctor' %}"
+         class="list-group-item {% if request.path == '/dashboard/patient/find/' %}active{% endif %}">
         Find Doctor
       </a>
-      <a href="/dashboard/patient/book/"
+
+      {# "Book Appointment" just redirects to Find Doctor; booking is doctor-specific #}
+      <a href="{% url 'find_doctor' %}"
          class="list-group-item {% if request.path == '/dashboard/patient/book/' %}active{% endif %}">
         Book Appointment
       </a>
-      <a href="/dashboard/patient/appointments/"
+
+      <a href="{% url 'my_appointments' %}"
          class="list-group-item {% if request.path == '/dashboard/patient/appointments/' %}active{% endif %}">
         My Appointments
       </a>
-      <a href="#"
-         class="list-group-item {% if request.path == '/dashboard/patient/profile/' %}active{% endif %}">
-        Profile (coming soon)
-      </a>
+
+      <a href="{% url 'patient_profile' %}"
+   class="list-group-item {% if request.path == '/dashboard/patient/profile/' %}active{% endif %}">
+  Profile
+</a>
+        <a href="{% url 'patient_notifications' %}"
+   class="list-group-item {% if request.path == '/dashboard/patient/notifications/' %}active{% endif %}">
+  Notifications
+</a>
     </div>
 
     <!-- Main content -->

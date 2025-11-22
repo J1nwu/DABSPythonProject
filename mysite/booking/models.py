@@ -97,16 +97,6 @@ class Appointment(models.Model):
     def __str__(self) -> str:
         return f"{self.patient.username} → Dr. {self.doctor.user.last_name} ({self.status})"
 
-class Notification(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
-
-    def __str__(self) -> str:
-        return f"To {self.user.username}: {self.message[:40]}"
-
-
 from django.conf import settings
 
 class SecurityLog(models.Model):
@@ -186,3 +176,71 @@ class SystemLog(models.Model):
     def __str__(self) -> str:
         username = self.user.username if self.user else "system"
         return f"[{self.created_at:%Y-%m-%d %H:%M}] {self.event_type} ({username})"
+
+from django.conf import settings
+from django.db import models
+
+# ... your existing models (DoctorProfile, Appointment, SystemSetting, etc.) ...
+
+from django.conf import settings
+from django.db import models
+
+
+class Notification(models.Model):
+    """
+    Simple per-user in-site notification.
+    Used for: appointment booked/approved/cancelled/rescheduled etc.
+    NOT used for password-reset mails.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    message = models.CharField(max_length=255)
+
+    # Optional internal link (e.g. /dashboard/patient/appointments/)
+    link = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Optional path inside the site",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def str(self) -> str:
+        return f"Notification for {self.user.username} - {self.message[:40]}"
+
+class Feedback(models.Model):
+        """
+        Feedback from patient about an appointment / doctor.
+        Only allowed for completed appointments.
+        """
+        appointment = models.OneToOneField(
+            "Appointment",
+            on_delete=models.CASCADE,
+            related_name="feedback",
+        )
+        patient = models.ForeignKey(
+            settings.AUTH_USER_MODEL,
+            on_delete=models.CASCADE,
+            related_name="feedbacks",
+        )
+        doctor = models.ForeignKey(
+            "DoctorProfile",
+            on_delete=models.CASCADE,
+            related_name="feedbacks",
+        )
+        rating = models.PositiveSmallIntegerField(default=5)  # 1–5
+        comments = models.TextField(blank=True)
+        created_at = models.DateTimeField(auto_now_add=True)
+
+        class Meta:
+            ordering = ["-created_at"]
+
+        def str(self):
+            return f"Feedback {self.rating}/5 for {self.doctor} by {self.patient}"

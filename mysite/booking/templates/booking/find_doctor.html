@@ -1,59 +1,66 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DABS — Find Doctor</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-<nav class="navbar navbar-dark" style="background:linear-gradient(90deg,#0a3a67,#0d5ea6);">
-  <div class="container">
-    <a class="navbar-brand fw-bold" href="/dashboard/patient/">DABS</a>
-    <a class="btn btn-outline-light" href="/logout/">Logout</a>
+{% extends "booking/patient_base.html" %}
+
+{% block title %}Find Doctor – DABS{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">Find Doctor</h3>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6">
+    <input
+      class="form-control"
+      name="q"
+      placeholder="Search name, specialization, hospital, city"
+      value="{{ q }}"
+    >
   </div>
-</nav>
+  <div class="col-md-6">
+    <button class="btn btn-primary">Search</button>
+    <a class="btn btn-outline-secondary ms-1" href=".">Reset</a>
+  </div>
+</form>
 
-<div class="container py-4">
-  <h3 class="fw-bold mb-3">Find Doctor</h3>
-
-  <form class="row g-2 mb-3" method="get">
-    <div class="col-md-6">
-      <input class="form-control" name="q" placeholder="Search name, specialization, hospital, city" value="{{ q }}">
-    </div>
-    <div class="col-md-6">
-      <button class="btn btn-primary">Search</button>
-      <a class="btn btn-outline-secondary" href=".">Reset</a>
-    </div>
-  </form>
-
-  <div class="table-responsive">
-    <table class="table table-striped align-middle">
-      <thead class="table-light">
-
+<div class="table-responsive">
+  <table class="table table-striped align-middle">
+    <thead class="table-light">
       <tr>
-  <th>Name</th><th>Specialization</th><th>Hospital</th><th>City</th><th>Fee</th><th>Action</th>
+        <th>Name</th>
+        <th>Specialization</th>
+        <th>Hospital</th>
+        <th>City</th>
+        <th>Fee</th>
+        <th>Action</th>
       </tr>
-
-      </thead>
-      <tbody>
-      {% for d in doctors %}
-       <tr>
-  <td>Dr. {{ d.user.first_name }} {{ d.user.last_name }}</td>
-  <td>{{ d.specialization }}</td>
-  <td>{{ d.hospital }}</td>
-  <td>{{ d.city }}</td>
-  <td>{% if d.fee %}₹ {{ d.fee }}{% else %}-{% endif %}</td>
-  <td>
-    <a class="btn btn-sm btn-primary" href="/dashboard/patient/book/{{ d.id }}/">Book</a>
-  </td>
-</tr>
-
-      {% empty %}
-        <tr><td colspan="5" class="text-muted">No doctors found.</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    </thead>
+    <tbody>
+    {% for d in doctors %}
+      <tr>
+        <td>Dr. {{ d.user.first_name }} {{ d.user.last_name }}</td>
+        <td>{{ d.specialization }}</td>
+        <td>{{ d.hospital }}</td>
+        <td>{{ d.city }}</td>
+        <td>
+          {% if d.fee %}
+            ₹ {{ d.fee }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>
+          <a class="btn btn-sm btn-primary"
+             href="{% url 'book_appointment' d.id %}">
+            Book
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="6" class="text-muted">
+          No doctors found. Try a different search.
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
 </div>
-</body>
-</html>
+{% endblock %}

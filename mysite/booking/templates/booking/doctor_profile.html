@@ -1,0 +1,114 @@
+{% extends "booking/doctor_base.html" %}
+{% block title %}Doctor – My Profile{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">My Profile</h3>
+
+{% if messages %}
+  {% for m in messages %}
+    <div class="alert alert-{{ m.tags }} mb-2">{{ m }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="row g-4">
+  <!-- Left: read-only summary -->
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h5 class="fw-bold mb-1">
+          {{ user_obj.get_full_name|default:user_obj.username }}
+        </h5>
+        <p class="text-muted mb-2">
+          {{ profile.specialization|default:"Specialization not set" }}
+        </p>
+        <p class="mb-1"><strong>Email:</strong> {{ user_obj.email|default:"—" }}</p>
+        <p class="mb-1"><strong>Phone:</strong> {{ profile.phone|default:"—" }}</p>
+        <p class="mb-1"><strong>Hospital/Clinic:</strong> {{ profile.hospital|default:"—" }}</p>
+        <p class="mb-1"><strong>City:</strong> {{ profile.city|default:"—" }}</p>
+        <p class="mb-1"><strong>Registration No.:</strong> {{ profile.registration_no|default:"—" }}</p>
+        <p class="mb-1"><strong>Consultation Fee:</strong>
+          {% if profile.fee %}
+            ₹ {{ profile.fee }}
+          {% else %}
+            —
+          {% endif %}
+        </p>
+        <hr>
+        <p class="small text-muted mb-0">
+          These details are used across the system (find doctor, appointment cards, reports, etc.).
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: edit form -->
+  <div class="col-md-8">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h5 class="fw-bold mb-3">Edit Profile</h5>
+
+        <form method="post" class="row g-3">
+          {% csrf_token %}
+
+          <div class="col-md-4">
+            <label class="form-label">First Name</label>
+            <input type="text" name="first_name" class="form-control"
+                   value="{{ user_obj.first_name }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Last Name</label>
+            <input type="text" name="last_name" class="form-control"
+                   value="{{ user_obj.last_name }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control"
+                   value="{{ user_obj.email }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Phone</label>
+            <input type="text" name="phone" class="form-control"
+                   value="{{ profile.phone|default:'' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Registration No.</label>
+            <input type="text" name="registration_no" class="form-control"
+                   value="{{ profile.registration_no|default:'' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Consultation Fee (₹)</label>
+            <input type="number" name="fee" min="0" class="form-control"
+                   value="{{ profile.fee|default:'' }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Specialization</label>
+            <input type="text" name="specialization" class="form-control"
+                   value="{{ profile.specialization|default:'' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Hospital/Clinic</label>
+            <input type="text" name="hospital" class="form-control"
+                   value="{{ profile.hospital|default:'' }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">City</label>
+            <input type="text" name="city" class="form-control"
+                   value="{{ profile.city|default:'' }}">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Short Bio</label>
+            <textarea name="bio" rows="3" class="form-control">{{ profile.bio|default:'' }}</textarea>
+          </div>
+
+          <div class="col-12 d-flex justify-content-end">
+            <button class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

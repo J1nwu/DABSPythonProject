@@ -1,0 +1,28 @@
+{% extends "booking/patient_base.html" %}
+
+{% block title %}My Notifications – DABS{% endblock %}
+
+{% block content %}
+<h3 class="fw-bold mb-3">My Notifications</h3>
+
+<div class="list-group">
+  {% for n in notifications %}
+    <a
+      href="{{ n.link|default:'#' }}"
+      class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+    >
+      <div>
+        <div class="fw-bold">{{ n.message }}</div>
+        <div class="small text-muted">{{ n.created_at }}</div>
+      </div>
+      {% if not n.is_read %}
+        <span class="badge bg-primary rounded-pill">New</span>
+      {% endif %}
+    </a>
+  {% empty %}
+    <div class="text-muted">
+      No notifications yet.
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

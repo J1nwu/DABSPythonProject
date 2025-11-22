@@ -1,5 +1,6 @@
 # booking/urls.py
 from django.urls import path
+from django.contrib.auth import views as auth_views
 from . import views
 
 urlpatterns = [
@@ -21,6 +22,9 @@ urlpatterns = [
     path('dashboard/patient/appointments/', views.my_appointments, name='my_appointments'),
     path('dashboard/patient/appointments/<int:appt_id>/cancel/', views.cancel_appointment, name='cancel_appointment'),
     path('dashboard/patient/appointments/<int:appt_id>/reschedule/', views.reschedule_appointment, name='reschedule_appointment'),
+    path('dashboard/patient/profile/', views.patient_profile, name='patient_profile'),
+    path('dashboard/patient/notifications/', views.patient_notifications, name='patient_notifications'),
+    path( "dashboard/patient/appointments/<int:appt_id>/feedback/",views.give_feedback,name="give_feedback",),
 
     # Doctor area
     path('dashboard/doctor/', views.doctor_dashboard, name='doctor_dashboard'),
@@ -31,6 +35,8 @@ urlpatterns = [
     path('dashboard/doctor/schedule/', views.doctor_schedule, name='doctor_schedule'),
     path('dashboard/doctor/appointments/', views.doctor_appointments, name='doctor_appointments'),
     path('dashboard/doctor/patients/', views.doctor_patients, name='doctor_patients'),
+    path('dashboard/doctor/profile/', views.doctor_profile, name='doctor_profile'),
+    path('dashboard/doctor/appointments/<int:appt_id>/complete/', views.doctor_mark_completed, name='doctor_mark_completed'),
 
     # --------- CUSTOM ADMIN UI (NOT Django /admin) ----------
     path('dabs-admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -43,4 +49,37 @@ urlpatterns = [
     path('dabs-admin/reports/', views.admin_reports, name='admin_reports'),
     path('dabs-admin/settings/', views.admin_settings, name='admin_settings'),
     path('dabs-admin/logs/', views.admin_logs, name='admin_logs'),
+
+# ========= PASSWORD RESET (BUILT-IN DJANGO VIEWS) =========
+    path(
+        "password-reset/",
+        auth_views.PasswordResetView.as_view(
+            template_name="booking/password_reset.html",
+            email_template_name="booking/password_reset_email.txt",
+            subject_template_name="booking/password_reset_subject.txt",
+        ),
+        name="password_reset",
+    ),
+    path(
+        "password-reset/done/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="booking/password_reset_done.html"
+        ),
+        name="password_reset_done",
+    ),
+    path(
+        "reset/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="booking/password_reset_confirm.html"
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "reset/done/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="booking/password_reset_complete.html"
+        ),
+        name="password_reset_complete",
+    ),
+
 ]
